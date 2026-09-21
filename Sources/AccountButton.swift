@@ -9,7 +9,7 @@ struct AccountButton: View {
 
     var body: some View {
         Button { showConfirm = true } label: {
-            Text("👤").font(.system(size: 20))
+            Image(systemName: "person.crop.circle").font(.system(size: 22))
         }
         .buttonStyle(.plain)
         .foregroundColor(tint)
