@@ -19,5 +19,5 @@ cài lên iPhone bằng Sideloadly giống AppQuanLyIOS.
 ## Các tab
 1. **Thống Kê** — chỉ theo NGÀY (7 card), chỉ xem, không có thống kê tháng, không drill-down sang hoá đơn/công nợ.
 2. **Chi Tiêu** — như mô tả ở trên.
-3. **Tính Lương** — tính lương Nhã theo tháng: lương hiện tại − (ứng + xăng), kèm biểu đồ 6 tháng gần đây.
+3. **Tính Lương** — tính lương Nhã theo tháng: lương hiện tại − ứng, kèm biểu đồ 6 tháng gần đây.
 4. **Ảnh Menu** — đổi/thêm ảnh món cho app khách (album Yêu thích hoặc camera), tự crop 3:4 rồi upload `POST /api/SanPham/{id}/hinh-anh`.

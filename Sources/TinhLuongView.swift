@@ -12,7 +12,7 @@ import SwiftUI
 /// Dùng chung 1 view cho cả "Tính lương Khánh"/"Tính lương Nhã", chỉ khác `shipperTen` truyền vào.
 struct TinhLuongView: View {
     @Binding var isLoggedIn: Bool
-    /// Bản nhân viên chỉ tính lương Nhã (công thức: lương hiện tại − (ứng + xăng)).
+    /// Bản nhân viên chỉ tính lương Nhã (công thức: lương hiện tại − ứng).
     let shipperTen = "Nhã"
 
     private var isNha: Bool { shipperTen == "Nhã" }
@@ -57,7 +57,7 @@ struct TinhLuongView: View {
     }
 
     private func tinhKetQua(_ luong: LuongShipperDto) -> Double {
-        if isNha { return luongHienTai - (luong.chiUng + luong.chiXang) }
+        if isNha { return luongHienTai - luong.chiUng }
         return luong.doanhThuShip * tiLe - (luongHienTai + luong.chiXang)
     }
 
@@ -89,9 +89,6 @@ struct TinhLuongView: View {
                             AmountRow(label: "Ứng \(shipperTen)", value: luong?.chiUng ?? 0)
                                 .contentShape(Rectangle())
                                 .onTapGesture { selectedDetail = .ung }
-                            AmountRow(label: "Chi xăng \(shipperTen)", value: luong?.chiXang ?? 0)
-                                .contentShape(Rectangle())
-                                .onTapGesture { selectedDetail = .xang }
                         }
 
                         Section {
@@ -121,7 +118,7 @@ struct TinhLuongView: View {
                             }
                         } footer: {
                             Text(isNha
-                                 ? "Kết quả = Lương hiện tại − (Ứng \(shipperTen) + Chi xăng)"
+                                 ? "Kết quả = Lương hiện tại − Ứng \(shipperTen)"
                                  : "Kết quả = Đơn ship × tỉ lệ − (Lương hiện tại + Chi xăng)")
                         }
 
@@ -158,8 +155,6 @@ struct TinhLuongView: View {
         .task { await load() }
         .sheet(item: $selectedDetail) { kind in
             switch kind {
-            case .xang:
-                ChiTieuThangDetailSheet(ten: "Chi xăng \(shipperTen)", items: items(nguyenLieuId: Self.xangNguyenLieuId[shipperTen]))
             case .ung:
                 ChiTieuThangDetailSheet(ten: "Ứng \(shipperTen)", items: items(nguyenLieuId: Self.ungNguyenLieuId[shipperTen]))
             }
@@ -207,7 +202,7 @@ struct TinhLuongView: View {
 }
 
 private enum LuongDetailKind: String, Identifiable {
-    case xang, ung
+    case ung
     var id: String { rawValue }
 }
 
