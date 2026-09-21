@@ -15,7 +15,7 @@ final class FormattingTests: XCTestCase {
     }
 
     func testAnyMatchesSearchBoQuaNil() {
-        XCTAssertTrue(anyMatchesSearch("duong", "Đường cát", nil))
+        XCTAssertTrue(anyMatchesSearch("cat", "Đường cát", nil))
         XCTAssertFalse(anyMatchesSearch("sữa", "Đường cát", nil))
     }
 }
