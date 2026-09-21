@@ -36,7 +36,7 @@ struct ChiTieuListView: View {
                 DaySearchBar(
                     date: $currentDate, searchText: $searchText,
                     placeholder: "Tìm nguyên liệu, ghi chú...",
-                    leading: AnyView(AccountButton(isLoggedIn: $isLoggedIn, tint: .white)),
+                    trailing: AnyView(AccountButton(isLoggedIn: $isLoggedIn, tint: .white)),
                     tinted: true
                 ) { Task { await load() } }
 
