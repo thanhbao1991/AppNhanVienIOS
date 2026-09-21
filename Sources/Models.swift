@@ -233,4 +233,10 @@ struct TongNoDto: Decodable {
 }
 
 
+struct LuongShipperDto: Decodable {
+    let doanhThuShip: Double
+    let chiXang: Double
+    let chiUng: Double
+}
+
 struct ActionResult { let success: Bool; let message: String?; var warnings: [String] = [] }

@@ -169,3 +169,87 @@ struct DayDateBar: View {
         }
     }
 }
+
+/// Chỉ chọn tháng/năm, không search — dùng cho ThongKeThangView, đặt trong toolbar `.principal` để
+/// nằm cùng dòng với nút Back (canh giữa tự nhiên theo nav bar), không còn chiếm riêng 1 dòng.
+/// `DatePicker` chuẩn của iOS không có chế độ "chỉ tháng/năm" nên tự ghép 2 bánh xe Picker trong
+/// sheet riêng (MonthYearPickerSheet).
+struct MonthDateBar: View {
+    @Binding var date: Date
+    /// True khi đặt trong toolbar đã tô nền brandPrimary (ThongKeThangView) — đổi chữ trắng cho
+    /// tương phản, khớp DaySearchBar/DayDateBar(tinted:).
+    var tinted: Bool = false
+    var onChange: () -> Void
+    @State private var showPicker = false
+
+    var body: some View {
+        Button { showPicker = true } label: {
+            HStack(spacing: 4) {
+                Image(systemName: "calendar")
+                Text(DateNavFormat.monthTitle.string(from: date))
+            }
+            .font(.subheadline.bold())
+            .foregroundColor(tinted ? .white : .brandPrimary)
+        }
+        .buttonStyle(.plain)
+        .sheet(isPresented: $showPicker) {
+            MonthYearPickerSheet(date: $date) {
+                showPicker = false
+                onChange()
+            }
+            .presentationDetents([.height(260)])
+        .presentationDragIndicator(.visible)
+        }
+    }
+}
+
+private struct MonthYearPickerSheet: View {
+    @Binding var date: Date
+    var onDone: () -> Void
+
+    @State private var month: Int
+    @State private var year: Int
+
+    private static let months = Array(1...12)
+    private let years: [Int]
+
+    init(date: Binding<Date>, onDone: @escaping () -> Void) {
+        self._date = date
+        self.onDone = onDone
+        let cal = Calendar.current
+        _month = State(initialValue: cal.component(.month, from: date.wrappedValue))
+        _year = State(initialValue: cal.component(.year, from: date.wrappedValue))
+        let currentYear = cal.component(.year, from: Date())
+        years = Array((currentYear - 5)...(currentYear + 1))
+    }
+
+    var body: some View {
+        NavigationStack {
+            HStack(spacing: 0) {
+                Picker("Tháng", selection: $month) {
+                    ForEach(Self.months, id: \.self) { m in
+                        Text("Tháng \(m)").tag(m)
+                    }
+                }
+                .pickerStyle(.wheel)
+
+                Picker("Năm", selection: $year) {
+                    ForEach(years, id: \.self) { y in
+                        Text("\(y)").tag(y)
+                    }
+                }
+                .pickerStyle(.wheel)
+            }
+            .navigationBarTitleDisplayMode(.inline)
+            .onChange(of: month) { _ in commit() }
+            .onChange(of: year) { _ in commit() }
+        }
+    }
+
+    private func commit() {
+        if let newDate = Calendar.current.date(from: DateComponents(year: year, month: month, day: 1)) {
+            date = newDate
+        }
+        onDone()
+    }
+}

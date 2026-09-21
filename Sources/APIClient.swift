@@ -255,11 +255,27 @@ actor APIClient {
             return (nil, "Không đọc được phản hồi từ server.")
         }
         return (env.data, env.isSuccess ? nil : (env.message ?? "Cập nhật ảnh thất bại."))
+    }
 
     func getSanPhamList() async -> [SanPhamDto] {
         let req = makeRequest("/api/SanPham")
         let (data, _) = await send(req)
         guard let data, let env = try? JSONDecoder().decode(ApiEnvelope<[SanPhamDto]>.self, from: data), env.isSuccess else { return [] }
         return (env.data ?? []).filter { !$0.ngungBan }
+    }
+
+    func getChiTieuByMonth(year: Int, month: Int) async -> [ChiTieuHangNgayDto] {
+        let req = makeRequest("/api/ChiTieuHangNgay/month?year=\(year)&month=\(month)")
+        let (data, _) = await send(req)
+        guard let data, let env = try? JSONDecoder().decode(ApiEnvelope<[ChiTieuHangNgayDto]>.self, from: data), env.isSuccess else { return [] }
+        return env.data ?? []
+    }
+
+    func getLuongShipperThang(ten: String, thang: Int, nam: Int) async -> LuongShipperDto? {
+        let tenEncoded = ten.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ten
+        let req = makeRequest("/api/ThongKe/luong-shipper-thang?ten=\(tenEncoded)&thang=\(thang)&nam=\(nam)")
+        let (data, _) = await send(req)
+        guard let data, let env = try? JSONDecoder().decode(ApiEnvelope<LuongShipperDto>.self, from: data), env.isSuccess else { return nil }
+        return env.data
     }
 }
