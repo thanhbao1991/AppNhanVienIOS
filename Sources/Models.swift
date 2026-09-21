@@ -116,4 +116,121 @@ struct NguyenLieuCreateRequest: Encodable {
     let ten: String
 }
 
+struct SanPhamBienTheDto: Decodable, Identifiable, Hashable {
+    let id: String
+    let sanPhamId: String
+    let tenBienThe: String
+    let giaBan: Double
+    let macDinh: Bool
+}
+
+struct SanPhamDto: Decodable, Identifiable {
+    let id: String
+    let ten: String
+    let ngungBan: Bool
+    let tenNhomSanPham: String?
+    let thuTu: Int
+    let bienThe: [SanPhamBienTheDto]
+    /// Chuỗi token đã chuẩn hoá sẵn từ server (SanPhamSearchHelper.BuildTimKiem: tên không dấu +
+    /// tên liền không cách + viết tắt tự nhận diện ("ts") + VietTat tự đặt tay ("cfk"...), nối bằng
+    /// ";"). Dùng để tìm món khớp Desktop (SanPhamMatchHelper.Search) thay vì so trực tiếp `ten`.
+    let timKiem: String?
+    /// Ảnh menu cho AppDatHangIOS (app khách đặt hàng) — nil nếu chưa có ảnh khớp/upload.
+    let hinhAnh: String?
+}
+
+// ---- Thống kê ngày ----
+
+struct NamedAmountDto: Decodable, Identifiable {
+    let ten: String
+    let soTien: Double
+    /// Khoá gộp thật (ChiTieuItemDto.NguyenLieuId ở backend) — dùng để khớp lại đúng nhóm khi bấm
+    /// xem chi tiết, KHÔNG so bằng `ten` (chữ tự do, có thể lệch hoa/thường giữa các lần nhập).
+    var nguyenLieuId: String? = nil
+    var id: String { ten }
+}
+
+struct DoanhThuItemDto: Decodable, Identifiable {
+    let ten: String
+    let doanhThu: Double
+    var id: String { ten }
+}
+
+struct KhachTienDto: Decodable, Identifiable {
+    let khachHangId: String?
+    let tenKhachHang: String
+    let soTien: Double
+    var id: String { tenKhachHang }
+}
+
+struct CongNoItemDto: Decodable, Identifiable {
+    let khachHangId: String?
+    let hoaDonId: String?
+    let ngayGio: String?
+    let tenKhachHang: String
+    let soTienNo: Double
+    var id: String { hoaDonId ?? (khachHangId ?? tenKhachHang) }
+}
+
+struct DonChuaThanhToanItemDto: Decodable, Identifiable {
+    let khachHangId: String?
+    let hoaDonId: String?
+    let tenKhachHang: String
+    let soTien: Double
+    var id: String { hoaDonId ?? (khachHangId ?? tenKhachHang) }
+}
+
+
+struct TongNoItemDto: Decodable, Identifiable {
+    let khachHangId: String?
+    let tenKhachHang: String
+    let tongConLai: Double
+    var id: String { khachHangId ?? tenKhachHang }
+}
+
+
+struct ThongKeChiTieuDto: Decodable {
+    let chiTieuNgay: Double
+    let danhSachChiTieuNgay: [NamedAmountDto]
+    let chiTieuThang: Double
+    let danhSachChiTieuThang: [NamedAmountDto]
+}
+
+struct ThongKeCongNoDto: Decodable {
+    let tongCongNoNgay: Double
+    let danhSachCongNoNgay: [CongNoItemDto]
+}
+
+struct ThongKeThanhToanDto: Decodable {
+    let tongTienMat: Double
+    let tongChuyenKhoan: Double
+    let danhSachTienMat: [NamedAmountDto]
+}
+
+
+struct ThongKeDoanhThuNgayDto: Decodable {
+    let tongDoanhThu: Double
+    let danhSach: [DoanhThuItemDto]
+}
+
+struct ThongKeTraNoNgayDto: Decodable {
+    let tongTraNoTaiQuan: Double
+    let tongTraNoShipper: Double
+    let traNoTaiQuan: [KhachTienDto]
+    let traNoShipper: [KhachTienDto]
+}
+
+
+struct ThongKeDonChuaThanhToanDto: Decodable {
+    let tongChuaThanhToan: Double
+    let danhSach: [DonChuaThanhToanItemDto]
+}
+
+
+struct TongNoDto: Decodable {
+    let tongConLai: Double
+    let danhSach: [TongNoItemDto]
+}
+
+
 struct ActionResult { let success: Bool; let message: String?; var warnings: [String] = [] }

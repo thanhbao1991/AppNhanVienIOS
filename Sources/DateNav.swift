@@ -108,3 +108,64 @@ struct DaySearchBar: View {
         }
     }
 }
+
+/// Chỉ chọn ngày, không search — dùng cho trang không có ô tìm kiếm (vd ThongKeView). Canh trái
+/// giống hệt nút ngày trong DaySearchBar (tab Hoá đơn) để vị trí khớp nhau giữa các tab.
+struct DayDateBar: View {
+    @Binding var date: Date
+    /// Nút phụ (vd link "Thống kê tháng") đặt bên phải cùng — khớp pattern `trailing` của DaySearchBar.
+    /// Khai báo TRƯỚC onChange vì onChange truyền qua trailing-closure ở call site (phải là param cuối).
+    var trailing: AnyView? = nil
+    /// Tô nền gradient brandPrimary tràn lên status bar, khớp DaySearchBar(tinted:) — xem lý do ở đó.
+    var tinted: Bool = false
+    var onChange: () -> Void
+    @State private var showPicker = false
+
+    var body: some View {
+        HStack {
+            Button { showPicker = true } label: {
+                HStack(spacing: 4) {
+                    Image(systemName: "calendar")
+                    Text(DateNavFormat.dayTitle.string(from: date))
+                }
+                .font(.subheadline.bold())
+                .foregroundColor(tinted ? .white : .brandPrimary)
+            }
+            .buttonStyle(.plain)
+            .fixedSize()
+
+            Spacer()
+
+            if let trailing { trailing }
+        }
+        // Cùng chiều cao với DaySearchBar (xem HeaderBarMetrics) dù không có ô tìm kiếm — tránh
+        // header 2 tab lệch chiều cao gây nháy/giật nội dung khi vuốt/chuyển qua lại.
+        .frame(height: HeaderBarMetrics.rowHeight)
+        .padding(.horizontal)
+        .padding(.vertical, HeaderBarMetrics.verticalPadding)
+        .background(
+            Group {
+                if tinted {
+                    LinearGradient(colors: [Color.brandPrimary, Color.brandPrimary.opacity(0.85)], startPoint: .top, endPoint: .bottom)
+                        .ignoresSafeArea(edges: .top)
+                }
+            }
+        )
+        .sheet(isPresented: $showPicker) {
+            NavigationStack {
+                DatePicker("Chọn ngày", selection: $date, displayedComponents: .date)
+                    .datePickerStyle(.graphical)
+                    .labelsHidden()
+                    .padding()
+                    .navigationBarTitleDisplayMode(.inline)
+                    .onChange(of: date) { _ in
+                        showPicker = false
+                        onChange()
+                    }
+                Spacer()
+            }
+            .presentationDetents([.medium])
+            .presentationDragIndicator(.visible)
+        }
+    }
+}

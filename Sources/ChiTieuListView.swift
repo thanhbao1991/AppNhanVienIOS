@@ -6,7 +6,6 @@ import SwiftUI
 /// "+" thêm chi tiêu nằm ở footer, khớp bố cục HoaDonListView (nút tròn cạnh tổng tiền).
 struct ChiTieuListView: View {
     @Binding var isLoggedIn: Bool
-    @State private var showLogoutConfirm = false
     @State private var currentDate = Date()
     @State private var items: [ChiTieuHangNgayDto] = []
     @State private var loading = false
@@ -37,7 +36,7 @@ struct ChiTieuListView: View {
                 DaySearchBar(
                     date: $currentDate, searchText: $searchText,
                     placeholder: "Tìm nguyên liệu, ghi chú...",
-                    leading: AnyView(accountButton),
+                    leading: AnyView(AccountButton(isLoggedIn: $isLoggedIn, tint: .white)),
                     tinted: true
                 ) { Task { await load() } }
 
@@ -100,23 +99,6 @@ struct ChiTieuListView: View {
             AddExpenseSheet(date: currentDate) {
                 Task { await load() }
             }
-        }
-    }
-
-    /// Nút tài khoản góc trái thanh tìm kiếm — app chỉ có 1 màn hình nên không có tab "Tài khoản"
-    /// riêng; bấm vào hiện tên đang đăng nhập + Đăng xuất (có xác nhận, tránh chạm nhầm).
-    private var accountButton: some View {
-        Button { showLogoutConfirm = true } label: {
-            Text("👤").font(.system(size: 20))
-        }
-        .buttonStyle(.plain)
-        .confirmationDialog(Prefs.displayName ?? "Tài khoản", isPresented: $showLogoutConfirm, titleVisibility: .visible) {
-            Button("Đăng xuất", role: .destructive) {
-                Prefs.clear()
-                Prefs.manualLogout = true
-                isLoggedIn = false
-            }
-            Button("Huỷ", role: .cancel) {}
         }
     }
 

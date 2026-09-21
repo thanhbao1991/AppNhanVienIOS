@@ -196,4 +196,70 @@ actor APIClient {
         let warnings = (obj["warnings"] as? [String]) ?? []
         return ActionResult(success: success, message: message, warnings: warnings)
     }
+
+    // ---- Thống kê ngày ----
+
+    func getThongKeChiTieu(ngay: Int, thang: Int, nam: Int) async -> ThongKeChiTieuDto? {
+        await getThongKe("chi-tieu-ngay", ngay: ngay, thang: thang, nam: nam)
+    }
+    func getThongKeCongNo(ngay: Int, thang: Int, nam: Int) async -> ThongKeCongNoDto? {
+        await getThongKe("cong-no-ngay", ngay: ngay, thang: thang, nam: nam)
+    }
+    func getThongKeThanhToan(ngay: Int, thang: Int, nam: Int) async -> ThongKeThanhToanDto? {
+        await getThongKe("thanh-toan-ngay", ngay: ngay, thang: thang, nam: nam)
+    }
+    func getThongKeDoanhThu(ngay: Int, thang: Int, nam: Int) async -> ThongKeDoanhThuNgayDto? {
+        await getThongKe("doanh-thu-ngay", ngay: ngay, thang: thang, nam: nam)
+    }
+    func getThongKeTraNo(ngay: Int, thang: Int, nam: Int) async -> ThongKeTraNoNgayDto? {
+        await getThongKe("tra-no-ngay", ngay: ngay, thang: thang, nam: nam)
+    }
+    func getThongKeDonChuaThanhToan(ngay: Int, thang: Int, nam: Int) async -> ThongKeDonChuaThanhToanDto? {
+        await getThongKe("don-chua-thanh-toan", ngay: ngay, thang: thang, nam: nam)
+    }
+    func getTongNo() async -> TongNoDto? {
+        let req = makeRequest("/api/ThongKe/tong-no")
+        let (data, _) = await send(req)
+        guard let data, let env = try? JSONDecoder().decode(ApiEnvelope<TongNoDto>.self, from: data), env.isSuccess else { return nil }
+        return env.data
+    }
+
+    private func getThongKe<T: Decodable>(_ endpoint: String, ngay: Int, thang: Int, nam: Int) async -> T? {
+        let req = makeRequest("/api/ThongKe/\(endpoint)?ngay=\(ngay)&thang=\(thang)&nam=\(nam)")
+        let (data, _) = await send(req)
+        guard let data, let env = try? JSONDecoder().decode(ApiEnvelope<T>.self, from: data), env.isSuccess else { return nil }
+        return env.data
+    }
+
+    /// Đổi/thêm ảnh món — multipart/form-data field "image", cùng cách dựng body với parseReceipt().
+    /// Backend lưu vào wwwroot/menu-images, trả về URL ảnh mới (data: String) để cập nhật UI ngay
+    /// không cần tải lại cả danh sách.
+    func uploadSanPhamHinhAnh(id: String, imageData: Data, mimeType: String = "image/jpeg") async -> (url: String?, message: String?) {
+        let boundary = "Boundary-\(UUID().uuidString)"
+        var body = Data()
+        body.append("--\(boundary)\r\n".data(using: .utf8)!)
+        body.append("Content-Disposition: form-data; name=\"image\"; filename=\"menu.jpg\"\r\n".data(using: .utf8)!)
+        body.append("Content-Type: \(mimeType)\r\n\r\n".data(using: .utf8)!)
+        body.append(imageData)
+        body.append("\r\n--\(boundary)--\r\n".data(using: .utf8)!)
+
+        var req = URLRequest(url: URL(string: Prefs.apiBase + "/api/SanPham/\(id)/hinh-anh")!)
+        req.httpMethod = "POST"
+        req.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
+        if let token = Prefs.token { req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization") }
+        req.httpBody = body
+
+        let (data, _) = await send(req)
+        guard let data else { return (nil, "Không có phản hồi từ server.") }
+        guard let env = try? JSONDecoder().decode(ApiEnvelope<String>.self, from: data) else {
+            return (nil, "Không đọc được phản hồi từ server.")
+        }
+        return (env.data, env.isSuccess ? nil : (env.message ?? "Cập nhật ảnh thất bại."))
+
+    func getSanPhamList() async -> [SanPhamDto] {
+        let req = makeRequest("/api/SanPham")
+        let (data, _) = await send(req)
+        guard let data, let env = try? JSONDecoder().decode(ApiEnvelope<[SanPhamDto]>.self, from: data), env.isSuccess else { return [] }
+        return (env.data ?? []).filter { !$0.ngungBan }
+    }
 }

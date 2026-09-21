@@ -22,8 +22,8 @@ targets:
         UISupportedInterfaceOrientations:
           - UIInterfaceOrientationPortrait
         UIRequiresFullScreen: true
-        NSCameraUsageDescription: Chụp ảnh hoá đơn mua hàng để đọc tự động vào Chi tiêu.
-        NSPhotoLibraryUsageDescription: Chọn ảnh hoá đơn mua hàng để đọc tự động vào Chi tiêu.
+        NSCameraUsageDescription: Chụp ảnh hoá đơn mua hàng để đọc tự động vào Chi tiêu, và chụp ảnh món cho menu.
+        NSPhotoLibraryUsageDescription: Chọn ảnh hoá đơn để đọc vào Chi tiêu, và chọn ảnh món để cập nhật ảnh menu.
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: uk.denncoffee.appnhanvienios
