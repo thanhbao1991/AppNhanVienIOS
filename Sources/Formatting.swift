@@ -49,4 +49,21 @@ enum HoaDonFormatting {
     static func moneyShort(_ value: Double) -> String {
         "\(Int((value / 1000).rounded()))k"
     }
+
+    private static let isoInFormats: [DateFormatter] = {
+        ["yyyy-MM-dd'T'HH:mm:ss", "yyyy-MM-dd'T'HH:mm:ss.SSS"].map {
+            let f = DateFormatter()
+            f.dateFormat = $0
+            f.locale = Locale(identifier: "en_US_POSIX")
+            return f
+        }
+    }()
+
+    static func parseIso(_ iso: String?) -> Date? {
+        guard let iso, !iso.isEmpty else { return nil }
+        for f in isoInFormats {
+            if let date = f.date(from: iso) { return date }
+        }
+        return nil
+    }
 }
