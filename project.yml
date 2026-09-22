@@ -2,7 +2,7 @@ name: AppNhanVienIOS
 options:
   bundleIdPrefix: uk.denncoffee
   deploymentTarget:
-    iOS: "16.0"
+    iOS: "15.0"
 settings:
   DEVELOPMENT_TEAM: ""
 targets:
