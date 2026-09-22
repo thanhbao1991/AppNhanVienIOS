@@ -109,6 +109,10 @@ struct ThongKeView: View {
                     .refreshable { await load() }
                 }
             }
+            // Không đặt navigationTitle (DayDateBar đã tự làm header) — nav bar mặc định vẫn chừa
+            // chỗ trống cho large title dù không có chữ gì, đẩy dải gradient xanh của DayDateBar
+            // xuống thấp và tạo mảng xanh trống phía trên rất cao. Ẩn hẳn nav bar cho khớp thiết kế.
+            .navigationBarHidden(true)
         }
         .task { await load() }
     }

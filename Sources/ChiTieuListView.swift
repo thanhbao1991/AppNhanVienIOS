@@ -88,6 +88,10 @@ struct ChiTieuListView: View {
                 .padding(.horizontal)
                 .padding(.vertical, 8)
             }
+            // Không có navigationTitle (DaySearchBar tự làm header) — xem lý do ẩn hẳn nav bar ở
+            // ThongKeView.swift (cùng vấn đề mảng xanh trống phía trên do nav bar mặc định chừa
+            // chỗ large title).
+            .navigationBarHidden(true)
         }
         .task { await load() }
         .sheet(item: $selectedItem) { item in
