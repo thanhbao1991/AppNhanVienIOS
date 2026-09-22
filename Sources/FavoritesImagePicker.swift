@@ -58,13 +58,7 @@ struct FavoritesImagePicker: View {
                     Button("Đóng") { dismiss() }
                 }
             }
-            .ifAvailableIOS16 { view in
-                view.toolbar {
-                    ToolbarItem(placement: .primaryAction) {
-                        FallbackPhotosPickerButton(disabled: picking, onPicked: onPicked)
-                    }
-                }
-            }
+            .modifier(FallbackPhotosPickerToolbarModifier(disabled: picking, onPicked: onPicked))
         }
         .task { await load() }
     }
@@ -115,6 +109,27 @@ struct FavoritesImagePicker: View {
             picking = false
             guard let image, let data = image.resizedForMenuUpload().jpegData(compressionQuality: 0.75) else { return }
             onPicked(data)
+        }
+    }
+}
+
+/// ViewModifier riêng (thay vì gọi thẳng `.toolbar` có điều kiện tại call site) vì `if #available`
+/// chỉ "che chắn" được API iOS 16 khi API đó nằm NGAY TRONG thân hàm đang xét, không lan được vào
+/// 1 closure truyền từ nơi khác — xem `compatToolbarBrandBackground` cùng file PlatformCompat.swift
+/// cho cùng lý do.
+private struct FallbackPhotosPickerToolbarModifier: ViewModifier {
+    let disabled: Bool
+    let onPicked: (Data) -> Void
+
+    func body(content: Content) -> some View {
+        if #available(iOS 16.0, *) {
+            content.toolbar {
+                ToolbarItem(placement: .primaryAction) {
+                    FallbackPhotosPickerButton(disabled: disabled, onPicked: onPicked)
+                }
+            }
+        } else {
+            content
         }
     }
 }
