@@ -89,7 +89,7 @@ struct DaySearchBar: View {
             }
         )
         .sheet(isPresented: $showPicker) {
-            NavigationStack {
+            AdaptiveNavigation {
                 DatePicker("Chọn ngày", selection: $date, displayedComponents: .date)
                     .datePickerStyle(.graphical)
                     .labelsHidden()
@@ -103,8 +103,8 @@ struct DaySearchBar: View {
                     }
                 Spacer()
             }
-            .presentationDetents([.medium])
-            .presentationDragIndicator(.visible)
+            .compatPresentationDetents([.medium])
+            .compatPresentationDragIndicator(visible: true)
         }
     }
 }
@@ -152,7 +152,7 @@ struct DayDateBar: View {
             }
         )
         .sheet(isPresented: $showPicker) {
-            NavigationStack {
+            AdaptiveNavigation {
                 DatePicker("Chọn ngày", selection: $date, displayedComponents: .date)
                     .datePickerStyle(.graphical)
                     .labelsHidden()
@@ -164,8 +164,8 @@ struct DayDateBar: View {
                     }
                 Spacer()
             }
-            .presentationDetents([.medium])
-            .presentationDragIndicator(.visible)
+            .compatPresentationDetents([.medium])
+            .compatPresentationDragIndicator(visible: true)
         }
     }
 }
@@ -197,8 +197,8 @@ struct MonthDateBar: View {
                 showPicker = false
                 onChange()
             }
-            .presentationDetents([.height(260)])
-        .presentationDragIndicator(.visible)
+            .compatPresentationDetents([.height(260)])
+            .compatPresentationDragIndicator(visible: true)
         }
     }
 }
@@ -224,7 +224,7 @@ private struct MonthYearPickerSheet: View {
     }
 
     var body: some View {
-        NavigationStack {
+        AdaptiveNavigation {
             HStack(spacing: 0) {
                 Picker("Tháng", selection: $month) {
                     ForEach(Self.months, id: \.self) { m in

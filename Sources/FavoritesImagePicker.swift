@@ -14,7 +14,6 @@ struct FavoritesImagePicker: View {
     @State private var loading = true
     @State private var authDenied = false
     @State private var picking = false
-    @State private var fallbackItem: PhotosPickerItem?
 
     private let columns = [GridItem(.adaptive(minimum: 90), spacing: 4)]
 
@@ -58,25 +57,14 @@ struct FavoritesImagePicker: View {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Đóng") { dismiss() }
                 }
-                ToolbarItem(placement: .primaryAction) {
-                    PhotosPicker(selection: $fallbackItem, matching: .images) {
-                        Text("Thư viện khác")
+                if #available(iOS 16.0, *) {
+                    ToolbarItem(placement: .primaryAction) {
+                        FallbackPhotosPickerButton(disabled: picking, onPicked: onPicked)
                     }
-                    .disabled(picking)
                 }
             }
         }
         .task { await load() }
-        .onChange(of: fallbackItem) { item in
-            guard let item else { return }
-            Task {
-                defer { fallbackItem = nil }
-                guard let raw = try? await item.loadTransferable(type: Data.self),
-                      let image = UIImage(data: raw),
-                      let data = image.resizedForMenuUpload().jpegData(compressionQuality: 0.75) else { return }
-                onPicked(data)
-            }
-        }
     }
 
     private func load() async {
@@ -125,6 +113,33 @@ struct FavoritesImagePicker: View {
             picking = false
             guard let image, let data = image.resizedForMenuUpload().jpegData(compressionQuality: 0.75) else { return }
             onPicked(data)
+        }
+    }
+}
+
+/// Tách riêng khỏi FavoritesImagePicker vì `PhotosPickerItem` (kiểu của @State) chỉ tồn tại từ iOS
+/// 16 — khai báo state đó ngay trong struct chính (không @available) sẽ lỗi biên dịch ở deployment
+/// target 15 dù dùng `if #available` bọc bên ngoài, vì đó là lỗi cấp chữ ký/kiểu, không phải runtime.
+@available(iOS 16.0, *)
+private struct FallbackPhotosPickerButton: View {
+    let disabled: Bool
+    let onPicked: (Data) -> Void
+    @State private var item: PhotosPickerItem?
+
+    var body: some View {
+        PhotosPicker(selection: $item, matching: .images) {
+            Text("Thư viện khác")
+        }
+        .disabled(disabled)
+        .onChange(of: item) { newItem in
+            guard let newItem else { return }
+            Task {
+                defer { item = nil }
+                guard let raw = try? await newItem.loadTransferable(type: Data.self),
+                      let image = UIImage(data: raw),
+                      let data = image.resizedForMenuUpload().jpegData(compressionQuality: 0.75) else { return }
+                onPicked(data)
+            }
         }
     }
 }

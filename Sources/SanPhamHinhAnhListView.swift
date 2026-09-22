@@ -19,7 +19,7 @@ struct SanPhamHinhAnhListView: View {
     }
 
     var body: some View {
-        NavigationStack {
+        AdaptiveNavigation {
         VStack(spacing: 0) {
             SearchBar(text: $query, placeholder: "Tìm món...")
 
@@ -41,9 +41,7 @@ struct SanPhamHinhAnhListView: View {
         }
         .navigationTitle("Ảnh menu")
         .navigationBarTitleDisplayMode(.inline)
-        .toolbarBackground(Color.brandPrimary, for: .navigationBar)
-        .toolbarBackground(.visible, for: .navigationBar)
-        .toolbarColorScheme(.dark, for: .navigationBar)
+        .compatToolbarBrandBackground()
         .toolbar {
             ToolbarItem(placement: .navigationBarTrailing) { AccountButton(isLoggedIn: $isLoggedIn, tint: .white) }
         }

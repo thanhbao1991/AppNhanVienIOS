@@ -20,7 +20,7 @@ struct ChiTieuThangDetailSheet: View {
     }
 
     var body: some View {
-        NavigationStack {
+        AdaptiveNavigation {
             List {
                 Section {
                     HStack {
@@ -42,15 +42,13 @@ struct ChiTieuThangDetailSheet: View {
             .listStyle(.plain)
             .navigationTitle(ten)
             .navigationBarTitleDisplayMode(.inline)
-            .toolbarBackground(Color.brandPrimary, for: .navigationBar)
-            .toolbarBackground(.visible, for: .navigationBar)
-            .toolbarColorScheme(.dark, for: .navigationBar)
+            .compatToolbarBrandBackground()
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Đóng") { dismiss() }
                 }
             }
         }
-        .presentationDragIndicator(.visible)
+        .compatPresentationDragIndicator(visible: true)
     }
 }

@@ -79,7 +79,7 @@ struct TinhLuongView: View {
     }
 
     var body: some View {
-        NavigationStack {
+        AdaptiveNavigation {
             Group {
                 if !hasLoaded {
                     fullScreenLoading()
@@ -140,9 +140,7 @@ struct TinhLuongView: View {
             }
             .navigationTitle("Tính lương \(shipperTen)")
             .navigationBarTitleDisplayMode(.inline)
-            .toolbarBackground(Color.brandPrimary, for: .navigationBar)
-            .toolbarBackground(.visible, for: .navigationBar)
-            .toolbarColorScheme(.dark, for: .navigationBar)
+            .compatToolbarBrandBackground()
             .toolbar {
                 ToolbarItem(placement: .principal) {
                     MonthDateBar(date: $currentDate, tinted: true) { Task { await load() } }

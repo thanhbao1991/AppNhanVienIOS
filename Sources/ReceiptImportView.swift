@@ -9,7 +9,6 @@ struct ReceiptImportButton: View {
     let date: Date
     let onSaved: () -> Void
 
-    @State private var pickerItem: PhotosPickerItem?
     @State private var showCamera = false
     @State private var loading = false
     @State private var loadError: String?
@@ -21,14 +20,9 @@ struct ReceiptImportButton: View {
 
     var body: some View {
         HStack(spacing: 10) {
-            if enabled {
-                PhotosPicker(selection: $pickerItem, matching: .images) {
-                    iconOrSpinner("🖼️")
-                }
-                .disabled(loading)
-                .onChange(of: pickerItem) { item in
-                    guard let item else { return }
-                    Task { await handlePickedFromLibrary(item) }
+            if enabled, #available(iOS 16.0, *) {
+                PhotoLibraryPickerButton(disabled: loading, icon: { iconOrSpinner("🖼️") }) { data in
+                    Task { await handleImageData(data) }
                 }
 
                 Button {
@@ -73,15 +67,6 @@ struct ReceiptImportButton: View {
         }
     }
 
-    private func handlePickedFromLibrary(_ item: PhotosPickerItem) async {
-        defer { pickerItem = nil }
-        guard let data = try? await item.loadTransferable(type: Data.self) else {
-            loadError = "Không đọc được ảnh đã chọn."
-            return
-        }
-        await handleImageData(data)
-    }
-
     private func handleImageData(_ data: Data) async {
         loading = true
         defer { loading = false }
@@ -90,6 +75,31 @@ struct ReceiptImportButton: View {
             parseResult = result
         } else {
             loadError = message ?? "Không đọc được dòng nào từ ảnh."
+        }
+    }
+}
+
+/// Tách riêng khỏi ReceiptImportButton vì `PhotosPickerItem` (kiểu @State) chỉ tồn tại từ iOS 16 —
+/// xem chú thích tương tự ở FallbackPhotosPickerButton trong FavoritesImagePicker.swift.
+@available(iOS 16.0, *)
+private struct PhotoLibraryPickerButton<Icon: View>: View {
+    let disabled: Bool
+    @ViewBuilder let icon: () -> Icon
+    let onPicked: (Data) -> Void
+    @State private var pickerItem: PhotosPickerItem?
+
+    var body: some View {
+        PhotosPicker(selection: $pickerItem, matching: .images) {
+            icon()
+        }
+        .disabled(disabled)
+        .onChange(of: pickerItem) { item in
+            guard let item else { return }
+            Task {
+                defer { pickerItem = nil }
+                guard let data = try? await item.loadTransferable(type: Data.self) else { return }
+                onPicked(data)
+            }
         }
     }
 }
@@ -185,7 +195,7 @@ private struct ReceiptReviewSheet: View {
     }
 
     var body: some View {
-        NavigationStack {
+        AdaptiveNavigation {
             Form {
                 Section {
                     Toggle("Bill tháng", isOn: $billThang)
@@ -205,9 +215,7 @@ private struct ReceiptReviewSheet: View {
             }
             .navigationTitle("Duyệt hoá đơn")
             .navigationBarTitleDisplayMode(.inline)
-            .toolbarBackground(Color.brandPrimary, for: .navigationBar)
-            .toolbarBackground(.visible, for: .navigationBar)
-            .toolbarColorScheme(.dark, for: .navigationBar)
+            .compatToolbarBrandBackground()
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Huỷ") { dismiss() }.disabled(saving)
