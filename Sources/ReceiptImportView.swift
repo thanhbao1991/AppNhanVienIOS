@@ -15,23 +15,29 @@ struct ReceiptImportButton: View {
     @State private var loadError: String?
     @State private var parseResult: ReceiptParseResultDto?
 
+    // Tạm ẩn 2026-09-22 theo yêu cầu — giữ nguyên logic bên dưới, chỉ ẩn UI, bật lại khi cần chỉ
+    // cần đổi false → true.
+    private let enabled = false
+
     var body: some View {
         HStack(spacing: 10) {
-            PhotosPicker(selection: $pickerItem, matching: .images) {
-                iconOrSpinner("🖼️")
-            }
-            .disabled(loading)
-            .onChange(of: pickerItem) { item in
-                guard let item else { return }
-                Task { await handlePickedFromLibrary(item) }
-            }
+            if enabled {
+                PhotosPicker(selection: $pickerItem, matching: .images) {
+                    iconOrSpinner("🖼️")
+                }
+                .disabled(loading)
+                .onChange(of: pickerItem) { item in
+                    guard let item else { return }
+                    Task { await handlePickedFromLibrary(item) }
+                }
 
-            Button {
-                showCamera = true
-            } label: {
-                iconOrSpinner("📷")
+                Button {
+                    showCamera = true
+                } label: {
+                    iconOrSpinner("📷")
+                }
+                .disabled(loading)
             }
-            .disabled(loading)
         }
         .foregroundColor(.brandPrimary)
         .fullScreenCover(isPresented: $showCamera) {
