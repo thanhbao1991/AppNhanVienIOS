@@ -57,7 +57,9 @@ struct FavoritesImagePicker: View {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Đóng") { dismiss() }
                 }
-                if #available(iOS 16.0, *) {
+            }
+            .ifAvailableIOS16 { view in
+                view.toolbar {
                     ToolbarItem(placement: .primaryAction) {
                         FallbackPhotosPickerButton(disabled: picking, onPicked: onPicked)
                     }

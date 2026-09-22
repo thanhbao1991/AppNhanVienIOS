@@ -49,6 +49,19 @@ extension View {
         }
     }
 
+    /// Áp thêm modifier chỉ trên iOS 16+ — dùng khi cần thêm `.toolbar { ... }` có điều kiện: đặt
+    /// `if #available` NGAY TRONG closure của `ToolbarContentBuilder` lỗi biên dịch dưới target 15
+    /// ('buildIf' chỉ có từ iOS 16), nên phải tách hẳn thành 1 lần gọi `.toolbar` riêng, gate ở tầng
+    /// View bên ngoài builder thay vì bên trong.
+    @ViewBuilder
+    func ifAvailableIOS16<T: View>(@ViewBuilder _ transform: (Self) -> T) -> some View {
+        if #available(iOS 16.0, *) {
+            transform(self)
+        } else {
+            self
+        }
+    }
+
     /// Tô nền navigation bar theo màu brand (`toolbarBackground`/`toolbarColorScheme` chỉ có từ iOS
     /// 16) — trên iOS 15 no-op, nav bar giữ màu mặc định hệ thống (khác biệt thẩm mỹ chấp nhận được
     /// để đổi lấy hạ deployment target, không đáng để dựng lại bằng UINavigationBarAppearance).
