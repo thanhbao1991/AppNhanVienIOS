@@ -1,4 +1,3 @@
-import PhotosUI
 import SwiftUI
 
 /// Màn "Ảnh menu" — cho nhân viên đổi/thêm ảnh món ăn cho AppDatHangIOS (app khách đặt hàng), vì
@@ -88,6 +87,7 @@ private struct SanPhamHinhAnhRow: View {
     let uploading: Bool
     let onPicked: (Data, String) -> Void
 
+    @State private var showPicker = false
     @State private var showCamera = false
 
     var body: some View {
@@ -100,9 +100,14 @@ private struct SanPhamHinhAnhRow: View {
                 ProgressView().frame(width: 28, height: 28)
             } else {
                 // .borderless để 2 nút trong cùng dòng List nhận tap riêng, không bị gộp cả dòng.
-                if #available(iOS 16.0, *) {
-                    MenuImagePickerButton(onPicked: { data in onPicked(data, "image/jpeg") })
+                Button {
+                    showPicker = true
+                } label: {
+                    Text("🖼️")
+                        .font(.system(size: 20))
+                        .frame(width: 36, height: 36)
                 }
+                .buttonStyle(.borderless)
                 Button {
                     showCamera = true
                 } label: {
@@ -114,6 +119,17 @@ private struct SanPhamHinhAnhRow: View {
             }
         }
         .padding(.vertical, 4)
+        // UIImagePickerController(sourceType: .photoLibrary) thay vì PhotosPicker (SwiftUI, chỉ có
+        // từ iOS 16) — máy nhân viên thật đang chạy iOS 15. Đây cũng chính là picker mặc định của
+        // hệ thống (mở Recents), không tự giới hạn vào album Yêu thích như FavoritesImagePicker cũ.
+        .fullScreenCover(isPresented: $showPicker) {
+            LibraryPicker { image in
+                showPicker = false
+                guard let image, let data = image.resizedForMenuUpload().jpegData(compressionQuality: 0.75) else { return }
+                onPicked(data, "image/jpeg")
+            }
+            .ignoresSafeArea()
+        }
         .fullScreenCover(isPresented: $showCamera) {
             CameraPicker { image in
                 showCamera = false
@@ -150,31 +166,33 @@ private struct SanPhamHinhAnhRow: View {
     }
 }
 
-/// Tách riêng khỏi SanPhamHinhAnhRow vì `PhotosPickerItem` (kiểu của @State) chỉ tồn tại từ iOS 16 —
-/// deployment target app đang là 15, khai báo state đó ngay trong struct chính sẽ lỗi biên dịch dù
-/// bọc bằng `if #available` bên ngoài (lỗi cấp chữ ký/kiểu, không phải runtime). Dùng PhotosPicker
-/// mặc định của hệ thống (mở Recents) thay vì tự vẽ album Yêu thích.
-@available(iOS 16.0, *)
-private struct MenuImagePickerButton: View {
-    let onPicked: (Data) -> Void
-    @State private var item: PhotosPickerItem?
+/// Bọc UIImagePickerController(sourceType: .photoLibrary) — chính là picker ảnh mặc định của hệ
+/// thống iOS (mở Recents, không giới hạn album Yêu thích). Dùng API cũ này thay vì PhotosPicker
+/// (SwiftUI, chỉ có từ iOS 16) vì máy nhân viên thật đang chạy iOS 15.
+struct LibraryPicker: UIViewControllerRepresentable {
+    let onPicked: (UIImage?) -> Void
 
-    var body: some View {
-        PhotosPicker(selection: $item, matching: .images) {
-            Text("🖼️")
-                .font(.system(size: 20))
-                .frame(width: 36, height: 36)
+    func makeUIViewController(context: Context) -> UIImagePickerController {
+        let picker = UIImagePickerController()
+        picker.sourceType = .photoLibrary
+        picker.delegate = context.coordinator
+        return picker
+    }
+
+    func updateUIViewController(_ uiViewController: UIImagePickerController, context: Context) {}
+
+    func makeCoordinator() -> Coordinator { Coordinator(onPicked: onPicked) }
+
+    final class Coordinator: NSObject, UIImagePickerControllerDelegate, UINavigationControllerDelegate {
+        let onPicked: (UIImage?) -> Void
+        init(onPicked: @escaping (UIImage?) -> Void) { self.onPicked = onPicked }
+
+        func imagePickerController(_ picker: UIImagePickerController, didFinishPickingMediaWithInfo info: [UIImagePickerController.InfoKey: Any]) {
+            onPicked(info[.originalImage] as? UIImage)
         }
-        .buttonStyle(.borderless)
-        .onChange(of: item) { newItem in
-            guard let newItem else { return }
-            Task {
-                defer { item = nil }
-                guard let raw = try? await newItem.loadTransferable(type: Data.self),
-                      let image = UIImage(data: raw),
-                      let data = image.resizedForMenuUpload().jpegData(compressionQuality: 0.75) else { return }
-                onPicked(data)
-            }
+
+        func imagePickerControllerDidCancel(_ picker: UIImagePickerController) {
+            onPicked(nil)
         }
     }
 }
