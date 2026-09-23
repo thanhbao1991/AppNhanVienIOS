@@ -88,7 +88,7 @@ private struct SanPhamHinhAnhRow: View {
     let uploading: Bool
     let onPicked: (Data, String) -> Void
 
-    @State private var showPicker = false
+    @State private var pickerItem: PhotosPickerItem?
     @State private var showCamera = false
 
     var body: some View {
@@ -101,9 +101,7 @@ private struct SanPhamHinhAnhRow: View {
                 ProgressView().frame(width: 28, height: 28)
             } else {
                 // .borderless để 2 nút trong cùng dòng List nhận tap riêng, không bị gộp cả dòng.
-                Button {
-                    showPicker = true
-                } label: {
+                PhotosPicker(selection: $pickerItem, matching: .images) {
                     Text("🖼️")
                         .font(.system(size: 20))
                         .frame(width: 36, height: 36)
@@ -120,11 +118,13 @@ private struct SanPhamHinhAnhRow: View {
             }
         }
         .padding(.vertical, 4)
-        // Mở thẳng vào album Yêu thích — xem FavoritesImagePicker để biết lý do không dùng
-        // PhotosPicker mặc định (Apple không cho chọn album ban đầu, luôn mở Recents).
-        .sheet(isPresented: $showPicker) {
-            FavoritesImagePicker { data in
-                showPicker = false
+        .onChange(of: pickerItem) { newItem in
+            guard let newItem else { return }
+            Task {
+                defer { pickerItem = nil }
+                guard let raw = try? await newItem.loadTransferable(type: Data.self),
+                      let image = UIImage(data: raw),
+                      let data = image.resizedForMenuUpload().jpegData(compressionQuality: 0.75) else { return }
                 onPicked(data, "image/jpeg")
             }
         }
