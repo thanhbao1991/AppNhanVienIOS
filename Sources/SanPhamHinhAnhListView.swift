@@ -88,7 +88,6 @@ private struct SanPhamHinhAnhRow: View {
     let uploading: Bool
     let onPicked: (Data, String) -> Void
 
-    @State private var pickerItem: PhotosPickerItem?
     @State private var showCamera = false
 
     var body: some View {
@@ -101,12 +100,9 @@ private struct SanPhamHinhAnhRow: View {
                 ProgressView().frame(width: 28, height: 28)
             } else {
                 // .borderless để 2 nút trong cùng dòng List nhận tap riêng, không bị gộp cả dòng.
-                PhotosPicker(selection: $pickerItem, matching: .images) {
-                    Text("🖼️")
-                        .font(.system(size: 20))
-                        .frame(width: 36, height: 36)
+                if #available(iOS 16.0, *) {
+                    MenuImagePickerButton(onPicked: { data in onPicked(data, "image/jpeg") })
                 }
-                .buttonStyle(.borderless)
                 Button {
                     showCamera = true
                 } label: {
@@ -118,16 +114,6 @@ private struct SanPhamHinhAnhRow: View {
             }
         }
         .padding(.vertical, 4)
-        .onChange(of: pickerItem) { newItem in
-            guard let newItem else { return }
-            Task {
-                defer { pickerItem = nil }
-                guard let raw = try? await newItem.loadTransferable(type: Data.self),
-                      let image = UIImage(data: raw),
-                      let data = image.resizedForMenuUpload().jpegData(compressionQuality: 0.75) else { return }
-                onPicked(data, "image/jpeg")
-            }
-        }
         .fullScreenCover(isPresented: $showCamera) {
             CameraPicker { image in
                 showCamera = false
@@ -160,6 +146,35 @@ private struct SanPhamHinhAnhRow: View {
                         .font(.headline)
                         .foregroundColor(.brandPrimary)
                 )
+        }
+    }
+}
+
+/// Tách riêng khỏi SanPhamHinhAnhRow vì `PhotosPickerItem` (kiểu của @State) chỉ tồn tại từ iOS 16 —
+/// deployment target app đang là 15, khai báo state đó ngay trong struct chính sẽ lỗi biên dịch dù
+/// bọc bằng `if #available` bên ngoài (lỗi cấp chữ ký/kiểu, không phải runtime). Dùng PhotosPicker
+/// mặc định của hệ thống (mở Recents) thay vì tự vẽ album Yêu thích.
+@available(iOS 16.0, *)
+private struct MenuImagePickerButton: View {
+    let onPicked: (Data) -> Void
+    @State private var item: PhotosPickerItem?
+
+    var body: some View {
+        PhotosPicker(selection: $item, matching: .images) {
+            Text("🖼️")
+                .font(.system(size: 20))
+                .frame(width: 36, height: 36)
+        }
+        .buttonStyle(.borderless)
+        .onChange(of: item) { newItem in
+            guard let newItem else { return }
+            Task {
+                defer { item = nil }
+                guard let raw = try? await newItem.loadTransferable(type: Data.self),
+                      let image = UIImage(data: raw),
+                      let data = image.resizedForMenuUpload().jpegData(compressionQuality: 0.75) else { return }
+                onPicked(data)
+            }
         }
     }
 }
