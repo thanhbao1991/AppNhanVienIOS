@@ -18,7 +18,7 @@ enum RuntimeEnv {
 }
 
 enum Prefs {
-    static let apiBase = "https://api.denncoffee.uk"
+    static let apiBase = "https://api.denncoffee.com"
     private static let defaults = UserDefaults.standard
     private static let keyToken = "token"
     private static let keyRefreshToken = "refresh_token"
