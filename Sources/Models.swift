@@ -74,6 +74,7 @@ struct ReceiptParseLineDto: Decodable, Identifiable {
 
 struct ReceiptParseResultDto: Decodable {
     let lines: [ReceiptParseLineDto]
+    let tongTrenPhieu: Double?
 }
 
 struct ChiTieuHangNgayBulkItemRequest: Encodable {
