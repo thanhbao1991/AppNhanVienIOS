@@ -18,7 +18,7 @@ struct SanPhamHinhAnhListView: View {
     }
 
     var body: some View {
-        AdaptiveNavigation {
+        NavigationStack {
         VStack(spacing: 0) {
             SearchBar(text: $query, placeholder: "Tìm món...")
 
@@ -40,7 +40,7 @@ struct SanPhamHinhAnhListView: View {
         }
         .navigationTitle("Ảnh menu")
         .navigationBarTitleDisplayMode(.inline)
-        .compatToolbarBrandBackground()
+        .brandToolbarBackground()
         .toolbar {
             ToolbarItem(placement: .navigationBarTrailing) { AccountButton(isLoggedIn: $isLoggedIn, tint: .white) }
         }
@@ -119,9 +119,8 @@ private struct SanPhamHinhAnhRow: View {
             }
         }
         .padding(.vertical, 4)
-        // UIImagePickerController(sourceType: .photoLibrary) thay vì PhotosPicker (SwiftUI, chỉ có
-        // từ iOS 16) — máy nhân viên thật đang chạy iOS 15. Đây cũng chính là picker mặc định của
-        // hệ thống (mở Recents), không tự giới hạn vào album Yêu thích như FavoritesImagePicker cũ.
+        // UIImagePickerController(sourceType: .photoLibrary) — picker mặc định của hệ thống (mở
+        // Recents), không tự giới hạn vào album Yêu thích như FavoritesImagePicker cũ.
         .fullScreenCover(isPresented: $showPicker) {
             LibraryPicker { image in
                 showPicker = false
@@ -167,8 +166,7 @@ private struct SanPhamHinhAnhRow: View {
 }
 
 /// Bọc UIImagePickerController(sourceType: .photoLibrary) — chính là picker ảnh mặc định của hệ
-/// thống iOS (mở Recents, không giới hạn album Yêu thích). Dùng API cũ này thay vì PhotosPicker
-/// (SwiftUI, chỉ có từ iOS 16) vì máy nhân viên thật đang chạy iOS 15.
+/// thống iOS (mở Recents, không giới hạn album Yêu thích).
 struct LibraryPicker: UIViewControllerRepresentable {
     let onPicked: (UIImage?) -> Void
 

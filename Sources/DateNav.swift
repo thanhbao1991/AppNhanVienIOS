@@ -89,7 +89,7 @@ struct DaySearchBar: View {
             }
         )
         .sheet(isPresented: $showPicker) {
-            AdaptiveNavigation {
+            NavigationStack {
                 DatePicker("Chọn ngày", selection: $date, displayedComponents: .date)
                     .datePickerStyle(.graphical)
                     .labelsHidden()
@@ -103,8 +103,8 @@ struct DaySearchBar: View {
                     }
                 Spacer()
             }
-            .compatPresentationDetents([.medium])
-            .compatPresentationDragIndicator(visible: true)
+            .presentationDetents([.medium])
+            .presentationDragIndicator(.visible)
         }
     }
 }
@@ -152,7 +152,7 @@ struct DayDateBar: View {
             }
         )
         .sheet(isPresented: $showPicker) {
-            AdaptiveNavigation {
+            NavigationStack {
                 DatePicker("Chọn ngày", selection: $date, displayedComponents: .date)
                     .datePickerStyle(.graphical)
                     .labelsHidden()
@@ -164,8 +164,8 @@ struct DayDateBar: View {
                     }
                 Spacer()
             }
-            .compatPresentationDetents([.medium])
-            .compatPresentationDragIndicator(visible: true)
+            .presentationDetents([.medium])
+            .presentationDragIndicator(.visible)
         }
     }
 }
@@ -197,8 +197,8 @@ struct MonthDateBar: View {
                 showPicker = false
                 onChange()
             }
-            .compatPresentationDetents([.height(260)])
-            .compatPresentationDragIndicator(visible: true)
+            .presentationDetents([.height(260)])
+            .presentationDragIndicator(.visible)
         }
     }
 }
@@ -224,7 +224,7 @@ private struct MonthYearPickerSheet: View {
     }
 
     var body: some View {
-        AdaptiveNavigation {
+        NavigationStack {
             HStack(spacing: 0) {
                 Picker("Tháng", selection: $month) {
                     ForEach(Self.months, id: \.self) { m in

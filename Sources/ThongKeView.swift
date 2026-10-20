@@ -25,7 +25,7 @@ struct ThongKeView: View {
     }
 
     var body: some View {
-        AdaptiveNavigation {
+        NavigationStack {
             VStack(spacing: 0) {
                 DayDateBar(
                     date: $currentDate,

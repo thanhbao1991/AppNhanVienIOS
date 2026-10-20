@@ -31,7 +31,7 @@ struct ChiTieuListView: View {
     }
 
     var body: some View {
-        AdaptiveNavigation {
+        NavigationStack {
             VStack(spacing: 0) {
                 DaySearchBar(
                     date: $currentDate, searchText: $searchText,
@@ -171,7 +171,7 @@ private struct ChiTieuDetailSheet: View {
     @State private var errorMessage: String?
 
     var body: some View {
-        AdaptiveNavigation {
+        NavigationStack {
             VStack(alignment: .leading, spacing: 20) {
                 VStack(alignment: .leading, spacing: 6) {
                     Text(item.ten).font(.title3.bold())
@@ -208,7 +208,7 @@ private struct ChiTieuDetailSheet: View {
             .padding()
             .navigationTitle("Chi tiết chi tiêu")
             .navigationBarTitleDisplayMode(.inline)
-            .compatToolbarBrandBackground()
+            .brandToolbarBackground()
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Đóng") { dismiss() }
@@ -281,7 +281,7 @@ private struct EditExpenseSheet: View {
     }
 
     var body: some View {
-        AdaptiveNavigation {
+        NavigationStack {
             Form {
                 Section("Số lượng & thành tiền") {
                     QuantityPriceRow(soLuong: $soLuong, thanhTien: $thanhTien, donGia: donGia)
@@ -298,7 +298,7 @@ private struct EditExpenseSheet: View {
             }
             .navigationTitle("Sửa chi tiêu")
             .navigationBarTitleDisplayMode(.inline)
-            .compatToolbarBrandBackground()
+            .brandToolbarBackground()
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Huỷ") { dismiss() }
@@ -429,7 +429,7 @@ struct AddExpenseSheet: View {
     private var donGia: Double { soLuong > 0 ? thanhTien / soLuong : 0 }
 
     var body: some View {
-        AdaptiveNavigation {
+        NavigationStack {
             Form {
                 Section("Nguyên liệu") {
                     TextField("Tìm nguyên liệu...", text: $searchText)
@@ -487,7 +487,7 @@ struct AddExpenseSheet: View {
             }
             .navigationTitle("Thêm chi tiêu")
             .navigationBarTitleDisplayMode(.inline)
-            .compatToolbarBrandBackground()
+            .brandToolbarBackground()
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Huỷ") { dismiss() }

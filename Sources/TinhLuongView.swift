@@ -79,7 +79,7 @@ struct TinhLuongView: View {
     }
 
     var body: some View {
-        AdaptiveNavigation {
+        NavigationStack {
             Group {
                 if !hasLoaded {
                     fullScreenLoading()
@@ -128,7 +128,7 @@ struct TinhLuongView: View {
                         .listRowBackground(Color.clear)
                         .listRowInsets(EdgeInsets())
 
-                        if !bieuDo6Thang.isEmpty, #available(iOS 16.0, *) {
+                        if !bieuDo6Thang.isEmpty {
                             Section {
                                 KetQua6ThangChart(items: bieuDo6Thang)
                             } header: {
@@ -140,7 +140,7 @@ struct TinhLuongView: View {
             }
             .navigationTitle("Tính lương \(shipperTen)")
             .navigationBarTitleDisplayMode(.inline)
-            .compatToolbarBrandBackground()
+            .brandToolbarBackground()
             .toolbar {
                 ToolbarItem(placement: .principal) {
                     MonthDateBar(date: $currentDate, tinted: true) { Task { await load() } }
@@ -207,7 +207,6 @@ private enum LuongDetailKind: String, Identifiable {
 /// Đường xu hướng kết quả 6 tháng gần đây — mỗi điểm tô màu theo lời/lỗ giống KetQuaCard, đường
 /// nối dùng màu trung tính (brandPrimary) vì bản thân đường không mang nghĩa lời/lỗ, chỉ nối các
 /// điểm cho dễ nhìn xu hướng tăng/giảm.
-@available(iOS 16.0, *)
 private struct KetQua6ThangChart: View {
     let items: [TinhLuongView.ThangKetQua]
 

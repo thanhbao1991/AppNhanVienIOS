@@ -20,7 +20,7 @@ struct ReceiptImportButton: View {
 
     var body: some View {
         HStack(spacing: 10) {
-            if enabled, #available(iOS 16.0, *) {
+            if enabled {
                 PhotoLibraryPickerButton(disabled: loading, icon: { iconOrSpinner("🖼️") }) { data in
                     Task { await handleImageData(data) }
                 }
@@ -79,9 +79,7 @@ struct ReceiptImportButton: View {
     }
 }
 
-/// Tách riêng khỏi ReceiptImportButton vì `PhotosPickerItem` (kiểu @State) chỉ tồn tại từ iOS 16 —
-/// xem chú thích tương tự ở FallbackPhotosPickerButton trong FavoritesImagePicker.swift.
-@available(iOS 16.0, *)
+/// Nút chọn ảnh hoá đơn từ thư viện (PhotosPicker), giữ @State pickerItem riêng.
 private struct PhotoLibraryPickerButton<Icon: View>: View {
     let disabled: Bool
     @ViewBuilder let icon: () -> Icon
@@ -200,7 +198,7 @@ private struct ReceiptReviewSheet: View {
     }
 
     var body: some View {
-        AdaptiveNavigation {
+        NavigationStack {
             Form {
                 Section {
                     Toggle("Bill tháng", isOn: $billThang)
@@ -228,7 +226,7 @@ private struct ReceiptReviewSheet: View {
             }
             .navigationTitle("Duyệt hoá đơn")
             .navigationBarTitleDisplayMode(.inline)
-            .compatToolbarBrandBackground()
+            .brandToolbarBackground()
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Huỷ") { dismiss() }.disabled(saving)
