@@ -6,6 +6,7 @@ struct AccountButton: View {
     @Binding var isLoggedIn: Bool
     var tint: Color = .primary
     @State private var showConfirm = false
+    @State private var showNhapAnh = false
 
     var body: some View {
         Button { showConfirm = true } label: {
@@ -13,7 +14,10 @@ struct AccountButton: View {
         }
         .buttonStyle(.plain)
         .foregroundColor(tint)
+        .sheet(isPresented: $showNhapAnh) { NhapAnhView() }
         .confirmationDialog(Prefs.displayName ?? "Tài khoản", isPresented: $showConfirm, titleVisibility: .visible) {
+            // TẠM THỜI (2026-10-20) — xem NhapAnhView.
+            Button("Nhập ảnh từ máy quầy") { showNhapAnh = true }
             Button("Đăng xuất", role: .destructive) {
                 Prefs.clear()
                 Prefs.manualLogout = true

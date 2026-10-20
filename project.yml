@@ -25,6 +25,10 @@ targets:
         ITSAppUsesNonExemptEncryption: false
         NSCameraUsageDescription: Chụp ảnh hoá đơn mua hàng để đọc tự động vào Chi tiêu, và chụp ảnh món cho menu.
         NSPhotoLibraryUsageDescription: Chọn ảnh hoá đơn để đọc vào Chi tiêu, và chọn ảnh món để cập nhật ảnh menu.
+        NSPhotoLibraryAddUsageDescription: Lưu ảnh và video nhập từ máy quầy vào thư viện Ảnh.
+        NSLocalNetworkUsageDescription: Kết nối máy quầy trong cùng Wi-Fi để nhập ảnh.
+        NSAppTransportSecurity:
+          NSAllowsLocalNetworking: true
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.denncoffee.appnhanvien
