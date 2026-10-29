@@ -111,6 +111,25 @@ actor APIClient {
         UIDevice.current.identifierForVendor?.uuidString
     }
 
+    /// Đăng ký APNs token của máy này (nil = gỡ, lúc đăng xuất). bundleId để backend gửi đúng
+    /// apns-topic của app này (khác AppQuanLy) và chỉ gửi push đơn mới/sửa/xoá.
+    func registerApnsDeviceToken(_ token: String?) async -> ActionResult {
+        let body: [String: String?] = ["apnsDeviceToken": token, "bundleId": Bundle.main.bundleIdentifier]
+        let req = makeRequest("/api/Auth/device-token", method: "PUT", body: jsonBody(body))
+        return await executeAction(req)
+    }
+
+    /// nil = tải lỗi (khác [] = thật sự chưa có thông báo nào).
+    func getThongBaoDon(take: Int = 50, before: String? = nil) async -> [ThongBaoNoiBoDto]? {
+        var path = "/api/ThongBaoNoiBo?chiDon=true&take=\(take)"
+        if let before, let enc = before.addingPercentEncoding(withAllowedCharacters: .alphanumerics) {
+            path += "&before=\(enc)"
+        }
+        let (data, _) = await send(makeRequest(path))
+        guard let data, let env = try? JSONDecoder().decode(ApiEnvelope<[ThongBaoNoiBoDto]>.self, from: data), env.isSuccess else { return nil }
+        return env.data ?? []
+    }
+
     func getChiTieuByDay(_ dateIso: String) async -> [ChiTieuHangNgayDto] {
         let req = makeRequest("/api/ChiTieuHangNgay?ngay=\(dateIso)")
         let (data, _) = await send(req)

@@ -53,6 +53,12 @@ enum Prefs {
         set { defaults.set(newValue, forKey: keyManualLogout) }
     }
 
+    /// Mốc (19 ký tự "yyyy-MM-ddTHH:mm:ss") thông báo mới nhất đã xem trên MÁY NÀY — xem ThongBaoBadge.
+    static var thongBaoDaXemDen: String {
+        get { defaults.string(forKey: "thong_bao_da_xem_den") ?? "" }
+        set { defaults.set(newValue, forKey: "thong_bao_da_xem_den") }
+    }
+
     static func saveSession(token: String, refreshToken: String?, displayName: String?) {
         Prefs.token = token
         if let rt = refreshToken, !rt.isEmpty { Prefs.refreshToken = rt }

@@ -4,6 +4,7 @@ import SwiftUI
 /// Chưa đăng nhập → LoginView; refresh token bị thu hồi (APIClient bắn .sessionExpired) → tự quay về LoginView.
 struct ContentView: View {
     @State private var isLoggedIn = Prefs.isLoggedIn
+    @ObservedObject private var thongBao = ThongBaoBadge.shared
 
     var body: some View {
         Group {
@@ -19,6 +20,9 @@ struct ContentView: View {
                         .tabItem { Label("Ảnh Menu", systemImage: "photo.on.rectangle") }
                 }
                 .tint(.brandPrimary)
+                // Phiên cũ còn hiệu lực lúc mở app, hoặc vừa đăng nhập xong → xin quyền + đăng ký push.
+                .onAppear { PushNotifications.requestAndRegister() }
+                .sheet(isPresented: $thongBao.moChuong) { ThongBaoListView() }
             } else {
                 LoginView(isLoggedIn: $isLoggedIn)
             }

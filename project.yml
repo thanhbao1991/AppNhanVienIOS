@@ -35,6 +35,8 @@ targets:
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         TARGETED_DEVICE_FAMILY: "1"
         SWIFT_VERSION: "5.0"
+        # aps-environment cho push đơn mới/sửa/xoá — export app-store tự đổi development → production.
+        CODE_SIGN_ENTITLEMENTS: AppNhanVienIOS.entitlements
     scheme:
       testTargets:
         - AppNhanVienIOSTests

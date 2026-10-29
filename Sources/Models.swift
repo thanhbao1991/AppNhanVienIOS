@@ -23,6 +23,16 @@ struct LoginResponse: Decodable {
     let refreshToken: String?
 }
 
+// ---- Thông báo (chuông) — GET /api/ThongBaoNoiBo?chiDon=true: chỉ đơn mới/sửa/xoá ----
+
+struct ThongBaoNoiBoDto: Decodable, Identifiable {
+    let id: String
+    let loai: String
+    let noiDung: String
+    let hoaDonId: String?
+    let taoLuc: String
+}
+
 enum LoginResult {
     case success(LoginResponse)
     case rejected(String)
