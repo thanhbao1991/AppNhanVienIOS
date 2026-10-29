@@ -15,6 +15,12 @@ struct ThongKeView: View {
     @State private var chuaThanhToan: ThongKeDonChuaThanhToanDto?
     @State private var tongNo: TongNoDto?
     @State private var hasLoaded = false
+    /// Có ít nhất 1 API lỗi ở lượt tải gần nhất — hiện banner "Thử lại" thay vì im lặng để thẻ biến mất.
+    @State private var loadFailed = false
+    /// Số thứ tự lượt `load()` — lượt cũ về sau lượt mới (đổi ngày nhanh) phải bị bỏ, không được ghi đè.
+    @State private var loadGeneration = 0
+    /// Ngày mà dữ liệu đang giữ trong các @State ở trên thuộc về (yyyy-M-d).
+    @State private var loadedKey = ""
     @State private var expandedCards: Set<ThongKeCard> = []
 
     /// Tiền mặt tại quán trừ chi tiêu ngày — số tiền mặt lẽ ra còn trong ngăn kéo. Port y hệt cách
@@ -38,6 +44,9 @@ struct ThongKeView: View {
                 } else {
                     ScrollView {
                         VStack(spacing: 10) {
+                            if loadFailed {
+                                ThongKeLoadErrorBanner { Task { await load() } }
+                            }
                             // Thứ tự Y HỆT WrapPanel Desktop: Thanh toán, Doanh thu, Công nợ,
                             // Khách trả nợ, Chi tiêu, Chưa thanh toán, Tổng nợ.
                             if let thanhToan {
@@ -47,6 +56,14 @@ struct ThongKeView: View {
                                     ForEach(thanhToan.danhSachTienMat) { AmountRow(label: $0.ten, value: $0.soTien) }
                                     if thanhToan.tongChuyenKhoan > 0 {
                                         AmountRow(label: "Chuyển khoản", value: thanhToan.tongChuyenKhoan)
+                                    }
+                                    // Khớp AppQuanLyIOS/Desktop: Nạp Xu = tiền thật vào ngân hàng; Xu = khách trả
+                                    // bằng ví, không phải tiền thật — cả 2 không nằm trong tổng thẻ/Kiểm tiền.
+                                    if let napXu = thanhToan.tongNapXu, napXu > 0 {
+                                        AmountRow(label: "Nạp Xu", value: napXu)
+                                    }
+                                    if let xu = thanhToan.tongViXu, xu > 0 {
+                                        AmountRow(label: "Xu (ví khách)", value: xu, color: .secondary)
                                     }
                                     if let kiemTien {
                                         AmountRow(label: "Kiểm tiền", value: kiemTien, color: .thongKeBlue)
@@ -128,6 +145,17 @@ struct ThongKeView: View {
         let ngay = cal.component(.day, from: currentDate)
         let thang = cal.component(.month, from: currentDate)
         let nam = cal.component(.year, from: currentDate)
+        loadGeneration += 1
+        let generation = loadGeneration
+        let key = "\(nam)-\(thang)-\(ngay)"
+
+        // Sang ngày khác: số của ngày cũ không được ở lại trên màn (kể cả khi API ngày mới lỗi).
+        // Cùng ngày (kéo refresh/thử lại): giữ số cũ, API nào lỗi thì thẻ đó không bị mất.
+        if key != loadedKey {
+            chiTieu = nil; congNo = nil; thanhToan = nil; doanhThu = nil
+            traNo = nil; chuaThanhToan = nil; tongNo = nil
+            hasLoaded = false
+        }
 
         async let a = APIClient.shared.getThongKeChiTieu(ngay: ngay, thang: thang, nam: nam)
         async let b = APIClient.shared.getThongKeCongNo(ngay: ngay, thang: thang, nam: nam)
@@ -137,8 +165,38 @@ struct ThongKeView: View {
         async let f = APIClient.shared.getThongKeDonChuaThanhToan(ngay: ngay, thang: thang, nam: nam)
         async let g = APIClient.shared.getTongNo()
 
-        (chiTieu, congNo, thanhToan, doanhThu, traNo, chuaThanhToan, tongNo) = await (a, b, c, d, e, f, g)
+        let r = await (a, b, c, d, e, f, g)
+        guard generation == loadGeneration else { return }   // đã có lượt load mới hơn — bỏ kết quả cũ
+
+        chiTieu = r.0 ?? chiTieu
+        congNo = r.1 ?? congNo
+        thanhToan = r.2 ?? thanhToan
+        doanhThu = r.3 ?? doanhThu
+        traNo = r.4 ?? traNo
+        chuaThanhToan = r.5 ?? chuaThanhToan
+        tongNo = r.6 ?? tongNo
+        loadFailed = r.0 == nil || r.1 == nil || r.2 == nil || r.3 == nil || r.4 == nil
+            || r.5 == nil || r.6 == nil
+        loadedKey = key
         hasLoaded = true
+    }
+}
+
+/// Banner báo lỗi tải — port y hệt AppQuanLyIOS. Có nút thử lại thay vì để thẻ biến mất im lặng.
+struct ThongKeLoadErrorBanner: View {
+    var text = "Chưa tải được một số mục"
+    let onRetry: () -> Void
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "exclamationmark.triangle.fill").foregroundColor(.warningColor)
+            Text(text).font(.footnote.weight(.medium))
+            Spacer()
+            Button("Thử lại", action: onRetry).font(.footnote.bold())
+        }
+        .padding(10)
+        .background(Color.warningColor.opacity(0.15))
+        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
     }
 }
 
