@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// App nhân viên có 4 tab (theo thứ tự): Thống Kê (chỉ theo ngày), Chi Tiêu, Tính Lương (Nhã), Ảnh Menu.
+/// App nhân viên có 5 tab (theo thứ tự): Thống Kê (chỉ theo ngày), Ship, Chi Tiêu, Tính Lương (Nhã), Ảnh Menu.
 /// Chưa đăng nhập → LoginView; refresh token bị thu hồi (APIClient bắn .sessionExpired) → tự quay về LoginView.
 struct ContentView: View {
     @State private var isLoggedIn = Prefs.isLoggedIn
@@ -12,6 +12,8 @@ struct ContentView: View {
                 TabView {
                     ThongKeView(isLoggedIn: $isLoggedIn)
                         .tabItem { Label("Thống Kê", systemImage: "chart.bar.fill") }
+                    ShipView(isLoggedIn: $isLoggedIn)
+                        .tabItem { Label("Ship", systemImage: "bicycle") }
                     ChiTieuListView(isLoggedIn: $isLoggedIn)
                         .tabItem { Label("Chi Tiêu", systemImage: "banknote") }
                     TinhLuongView(isLoggedIn: $isLoggedIn)

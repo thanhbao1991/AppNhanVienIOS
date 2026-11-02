@@ -257,3 +257,28 @@ struct LuongShipperDto: Decodable {
 }
 
 struct ActionResult { let success: Bool; let message: String?; var warnings: [String] = [] }
+
+// ---- Ship — GET /api/shipper/shipper + /api/shipper/summary (khớp Models.kt AppShipperAndroid) ----
+
+struct ShipperHoaDonDto: Decodable, Identifiable {
+    let id: String
+    let tenKhachHangText: String?
+    let diaChiText: String?
+    let soDienThoaiText: String?
+    let ghiChuShipper: String?
+    let conLai: Double
+    let tongNoKhachHang: Double?
+    let thanhTien: Double
+    let ngayNo: String?
+    let ngayShip: String?
+
+    var tenHienThi: String { (tenKhachHangText?.isEmpty == false) ? tenKhachHangText! : "Khách lẻ" }
+    var tongNo: Double { tongNoKhachHang ?? 0 }
+}
+
+struct ShipperSummaryDto: Decodable {
+    let tienMat: Double
+    let chuyenKhoan: Double
+    let traNoTrongNgay: Double
+    let traNoQuaNgay: Double
+}

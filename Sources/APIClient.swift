@@ -290,6 +290,27 @@ actor APIClient {
         return env.data ?? []
     }
 
+    // ---- Ship (tab Ship, port từ AppShipperAndroid) ----
+
+    /// nil = tải lỗi (khác [] = thật sự chưa có đơn).
+    func getShipperList(dateYmd: String) async -> [ShipperHoaDonDto]? {
+        let (data, _) = await send(makeRequest("/api/shipper/shipper?date=\(dateYmd)"))
+        guard let data, let env = try? JSONDecoder().decode(ApiEnvelope<[ShipperHoaDonDto]>.self, from: data), env.isSuccess else { return nil }
+        return env.data ?? []
+    }
+
+    func getShipperSummary(dateYmd: String) async -> ShipperSummaryDto? {
+        let (data, _) = await send(makeRequest("/api/shipper/summary?day=\(dateYmd)"))
+        guard let data, let env = try? JSONDecoder().decode(ApiEnvelope<ShipperSummaryDto>.self, from: data), env.isSuccess else { return nil }
+        return env.data
+    }
+
+    /// Trả nợ gửi body là SỐ NGHÌN thô (vd "150") y như Android — các action khác body rỗng.
+    func shipperAction(_ action: ShipAction, id: String, traNoNghin: Int = 0) async -> ActionResult {
+        let body = action == .traNo ? Data(String(traNoNghin).utf8) : nil
+        return await executeAction(makeRequest("/api/shipper/\(action.path)/\(id)", method: "POST", body: body))
+    }
+
     func getLuongShipperThang(ten: String, thang: Int, nam: Int) async -> LuongShipperDto? {
         let tenEncoded = ten.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ten
         let req = makeRequest("/api/ThongKe/luong-shipper-thang?ten=\(tenEncoded)&thang=\(thang)&nam=\(nam)")
