@@ -235,6 +235,8 @@ enum ShipAction {
 /// Trạng thái suy từ GhiChuShipper (backend ghi "Tiền mặt…", "Chuyển khoản…", "Ghi nợ…", "Tí nữa…").
 extension ShipperHoaDonDto {
     var status: ShipAction? {
+        // Ghi nợ ở quầy (F12 Desktop) chỉ set NgayNo, không ghi GhiChuShipper.
+        if let ngayNo, !ngayNo.isEmpty { return .ghiNo }
         let note = (ghiChuShipper ?? "").trimmingCharacters(in: .whitespaces).lowercased()
         if note.hasPrefix("tiền mặt") { return .tienMat }
         if note.hasPrefix("chuyển khoản") { return .chuyenKhoan }
