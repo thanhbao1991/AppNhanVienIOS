@@ -55,7 +55,7 @@ struct ChiTieuListView: View {
                 DateStepperBar(date: $currentDate) { Task { await load() } }
             }
             .searchable(text: $searchText, placement: .navigationBarDrawer(displayMode: .automatic), prompt: "Tìm nguyên liệu, ghi chú")
-            .navigationTitle("Chi tiêu")
+            .navigationBarTitleDisplayMode(.inline)
             .staffToolbar(isLoggedIn: $isLoggedIn) {
                 Button { showAdd = true } label: {
                     Image(systemName: "plus.circle.fill").font(.system(size: 22))

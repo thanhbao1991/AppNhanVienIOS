@@ -48,7 +48,7 @@ struct ThongKeView: View {
             .safeAreaInset(edge: .top, spacing: 0) {
                 DateStepperBar(date: $currentDate) { Task { await load() } }
             }
-            .navigationTitle("Thống kê")
+            .navigationBarTitleDisplayMode(.inline)
             .staffToolbar(isLoggedIn: $isLoggedIn)
         }
         .task { await load() }

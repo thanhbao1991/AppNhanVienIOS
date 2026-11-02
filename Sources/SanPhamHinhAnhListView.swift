@@ -54,7 +54,7 @@ struct SanPhamHinhAnhListView: View {
                 }
             }
             .searchable(text: $query, placement: .navigationBarDrawer(displayMode: .always), prompt: "Tìm món")
-            .navigationTitle("Ảnh menu")
+            .navigationBarTitleDisplayMode(.inline)
             .staffToolbar(isLoggedIn: $isLoggedIn)
         }
         .task { await load() }

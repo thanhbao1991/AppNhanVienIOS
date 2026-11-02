@@ -57,7 +57,7 @@ struct ShipView: View {
             .safeAreaInset(edge: .top, spacing: 0) {
                 DateStepperBar(date: $currentDate) { Task { await load() } }
             }
-            .navigationTitle("Ship · \(Self.shipper)")
+            .navigationBarTitleDisplayMode(.inline)
             .staffToolbar(isLoggedIn: $isLoggedIn)
         }
         .task { await load() }

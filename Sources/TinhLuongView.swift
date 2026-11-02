@@ -102,7 +102,7 @@ struct TinhLuongView: View {
             .safeAreaInset(edge: .top, spacing: 0) {
                 MonthStepperBar(date: $currentDate) { Task { await load() } }
             }
-            .navigationTitle("Lương \(shipperTen)")
+            .navigationBarTitleDisplayMode(.inline)
             .staffToolbar(isLoggedIn: $isLoggedIn)
             .toolbar {
                 ToolbarItemGroup(placement: .keyboard) {
