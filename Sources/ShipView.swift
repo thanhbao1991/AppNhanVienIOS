@@ -165,7 +165,15 @@ struct ShipView: View {
             alertMessage = "Tổng tiền khách đưa phải lớn hơn tiền đơn hôm nay \(HoaDonFormatting.money(hd.shipperDaThu))"
             return
         }
-        traNoConfirm = TraNoConfirm(hd: hd, nghin: nghin, duKien: min(khachDua - hd.shipperDaThu, hd.tongNo))
+        // Server tự kẹp về tổng nợ (phần dư không ghi đâu cả) — báo trước để Nhã nhập lại/thối tiền.
+        let toiDa = hd.shipperDaThu + hd.tongNo
+        guard khachDua <= toiDa else {
+            alertMessage = "Nhập dư! Khách chỉ nợ \(HoaDonFormatting.money(hd.tongNo))"
+                + (hd.shipperDaThu > 0 ? " + đơn hôm nay \(HoaDonFormatting.money(hd.shipperDaThu))" : "")
+                + ".\nTối đa nhập \(Int(toiDa / 1000))"
+            return
+        }
+        traNoConfirm = TraNoConfirm(hd: hd, nghin: nghin, duKien: khachDua - hd.shipperDaThu)
     }
 
     private func run(_ kind: ShipAction, hd: ShipperHoaDonDto, traNoNghin: Int = 0) async {
