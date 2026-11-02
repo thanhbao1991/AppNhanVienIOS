@@ -293,16 +293,12 @@ actor APIClient {
     // ---- Ship (tab Ship, port từ AppShipperAndroid) ----
 
     /// nil = tải lỗi (khác [] = thật sự chưa có đơn).
-    func getShipperList(dateYmd: String) async -> [ShipperHoaDonDto]? {
-        let (data, _) = await send(makeRequest("/api/shipper/shipper?date=\(dateYmd)"))
+    /// Đơn đã ESC cho `shipper` (NguoiShip, khớp tên trong ShipperDialog Desktop).
+    func getShipperList(dateYmd: String, shipper: String) async -> [ShipperHoaDonDto]? {
+        let ten = shipper.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? shipper
+        let (data, _) = await send(makeRequest("/api/shipper/shipper?date=\(dateYmd)&shipper=\(ten)"))
         guard let data, let env = try? JSONDecoder().decode(ApiEnvelope<[ShipperHoaDonDto]>.self, from: data), env.isSuccess else { return nil }
         return env.data ?? []
-    }
-
-    func getShipperSummary(dateYmd: String) async -> ShipperSummaryDto? {
-        let (data, _) = await send(makeRequest("/api/shipper/summary?day=\(dateYmd)"))
-        guard let data, let env = try? JSONDecoder().decode(ApiEnvelope<ShipperSummaryDto>.self, from: data), env.isSuccess else { return nil }
-        return env.data
     }
 
     /// Trả nợ gửi body là SỐ NGHÌN thô (vd "150") y như Android — các action khác body rỗng.

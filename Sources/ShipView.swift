@@ -1,15 +1,16 @@
 import SwiftUI
 
 /// Tab Ship — bản rút gọn của AppShipperAndroid (MainActivity + HoaDonAdapter), cùng API /api/shipper/*
-/// (backend mặc định lọc đơn đã ESC cho shipper "Khánh"). Giữ: tổng Tiền mặt/CK/Trả nợ trong ngày, danh
+/// nhưng lọc đơn ESC cho shipper "Nhã" (Android là Khánh). Giữ: tổng Tiền mặt/CK/Trả nợ trong ngày, danh
 /// sách đơn, 5 thao tác Tiền mặt/Chuyển khoản/Tí nữa CK/Ghi nợ/Trả nợ. Bỏ: dải chip theo nhóm, đọc TTS,
 /// dịch vụ nền SignalR, popup — tải lại khi mở tab, kéo xuống hoặc quay lại app.
 struct ShipView: View {
+    static let shipper = "Nhã"
+
     @Binding var isLoggedIn: Bool
     @Environment(\.scenePhase) private var scenePhase
     @State private var currentDate = Date()
     @State private var hoaDons: [ShipperHoaDonDto] = []
-    @State private var summary: ShipperSummaryDto?
     @State private var hasLoaded = false
     @State private var loadFailed = false
     @State private var loadGeneration = 0
@@ -101,11 +102,16 @@ struct ShipView: View {
         }
     }
 
+    /// Tự cộng từ danh sách đơn của Nhã — KHÔNG dùng /api/shipper/summary vì API đó gộp mọi khoản thu
+    /// ghi chú "Shipper" (lẫn cả của Khánh qua AppShipperAndroid).
     private var summaryRow: some View {
-        HStack(spacing: 8) {
-            SummaryPill(title: "Tiền mặt", value: summary?.tienMat, color: .successColor)
-            SummaryPill(title: "Chuyển khoản", value: summary?.chuyenKhoan, color: .thongKeBlue)
-            SummaryPill(title: "Trả nợ", value: summary.map { $0.traNoTrongNgay + $0.traNoQuaNgay }, color: .thongKePurple)
+        let tienMat = hoaDons.filter { $0.status == .tienMat }.reduce(0) { $0 + $1.thanhTien }
+        let ck = hoaDons.filter { $0.status == .chuyenKhoan }.reduce(0) { $0 + $1.thanhTien }
+        let traNo = hoaDons.reduce(0) { $0 + $1.traNoDaThu }
+        return HStack(spacing: 8) {
+            SummaryPill(title: "Tiền mặt", value: tienMat, color: .successColor)
+            SummaryPill(title: "Chuyển khoản", value: ck, color: .thongKeBlue)
+            SummaryPill(title: "Trả nợ", value: traNo, color: .thongKePurple)
         }
     }
 
@@ -113,13 +119,10 @@ struct ShipView: View {
         loadGeneration += 1
         let generation = loadGeneration
         let ymd = DateNavFormat.queryDate.string(from: currentDate)
-        async let list = APIClient.shared.getShipperList(dateYmd: ymd)
-        async let sum = APIClient.shared.getShipperSummary(dateYmd: ymd)
-        let r = await (list, sum)
+        let list = await APIClient.shared.getShipperList(dateYmd: ymd, shipper: Self.shipper)
         guard generation == loadGeneration else { return }
-        if let l = r.0 { hoaDons = l } else if !hasLoaded { hoaDons = [] }
-        summary = r.1 ?? summary
-        loadFailed = r.0 == nil
+        if let list { hoaDons = list } else if !hasLoaded { hoaDons = [] }
+        loadFailed = list == nil
         hasLoaded = true
     }
 
@@ -218,6 +221,16 @@ extension ShipperHoaDonDto {
         case nil: return [.tienMat, .chuyenKhoan, .tiNua, .ghiNo] + traNo
         case .tienMat?, .tiNua?: return traNo
         default: return []
+        }
+    }
+
+    /// Backend nối "| Trả nợ: 150.000 ₫" vào GhiChuShipper sau mỗi lần trả nợ (ShipperActionService.TraNoAsync)
+    /// — cộng các số đó lại. Dấu phân cách nghìn tuỳ culture server (. hoặc ,) nên chỉ lấy chữ số.
+    var traNoDaThu: Double {
+        guard let note = ghiChuShipper else { return 0 }
+        return note.components(separatedBy: "Trả nợ:").dropFirst().reduce(0) { sum, part in
+            let so = part.prefix { $0.isNumber || $0 == "." || $0 == "," || $0 == " " }.filter(\.isNumber)
+            return sum + (Double(so) ?? 0)
         }
     }
 
