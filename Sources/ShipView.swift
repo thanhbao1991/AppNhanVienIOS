@@ -82,12 +82,12 @@ struct ShipView: View {
             isPresented: Binding(get: { traNoTarget != nil }, set: { if !$0 { traNoTarget = nil } }),
             presenting: traNoTarget
         ) { hd in
-            TextField("Tổng tiền khách đưa (nghìn)", text: $traNoInput)
+            TextField("VD: 150", text: $traNoInput)
                 .keyboardType(.numberPad)
             Button("Tiếp tục") { checkTraNo(hd) }
             Button("Huỷ", role: .cancel) {}
         } message: { _ in
-            Text("Nhập TỔNG tiền khách đưa, tính bằng nghìn đồng.")
+            Text("Nhập TỔNG tiền khách đưa, bỏ 3 số 0 cuối.\nVD: khách đưa 150.000đ → nhập 150")
         }
         .alert(
             "Xác nhận trả nợ",
@@ -153,6 +153,11 @@ struct ShipView: View {
     private func checkTraNo(_ hd: ShipperHoaDonDto) {
         guard let nghin = Int(traNoInput.filter(\.isNumber)), nghin > 0 else {
             alertMessage = "Số tiền không hợp lệ."
+            return
+        }
+        // Gõ cả số 0 (150000 thay vì 150) → hiểu thành 150 triệu, server sẽ trừ sạch nợ khách. Chặn từ 10 triệu.
+        guard nghin < 10_000 else {
+            alertMessage = "Chỉ nhập số nghìn, bỏ 3 số 0 cuối.\nVD: 150.000đ → nhập 150"
             return
         }
         let khachDua = Double(nghin) * 1000
