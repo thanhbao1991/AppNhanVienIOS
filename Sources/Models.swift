@@ -271,6 +271,7 @@ struct ShipperHoaDonDto: Decodable, Identifiable {
     let thanhTien: Double
     let ngayNo: String?
     let ngayShip: String?
+    let khachHangId: String?
     /// "Ship" | "AppDatHang" — nil ở backend cũ chưa trả field.
     let phanLoai: String?
 

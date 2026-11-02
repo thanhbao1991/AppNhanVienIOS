@@ -156,11 +156,11 @@ struct ShipView: View {
             return
         }
         let khachDua = Double(nghin) * 1000
-        guard khachDua > hd.thanhTien else {
-            alertMessage = "Tổng tiền khách đưa phải lớn hơn tiền đơn hôm nay \(HoaDonFormatting.money(hd.thanhTien))"
+        guard khachDua > hd.shipperDaThu else {
+            alertMessage = "Tổng tiền khách đưa phải lớn hơn tiền đơn hôm nay \(HoaDonFormatting.money(hd.shipperDaThu))"
             return
         }
-        traNoConfirm = TraNoConfirm(hd: hd, nghin: nghin, duKien: min(khachDua - hd.thanhTien, hd.tongNo))
+        traNoConfirm = TraNoConfirm(hd: hd, nghin: nghin, duKien: min(khachDua - hd.shipperDaThu, hd.tongNo))
     }
 
     private func run(_ kind: ShipAction, hd: ShipperHoaDonDto, traNoNghin: Int = 0) async {
@@ -243,16 +243,29 @@ extension ShipperHoaDonDto {
         return nil
     }
 
-    /// Chưa chọn: đủ 4 nút. Đã Tiền mặt/Tí nữa CK mà khách còn nợ: chỉ còn Trả nợ. CK/Ghi nợ: khoá hết.
-    /// Trả nợ chỉ hiện khi đơn đã thu đủ (Android hiện sẵn rồi báo "bấm Tiền mặt trước" — bỏ bước thừa).
+    /// Đơn chưa shipper xử lý nhưng đã thu đủ ở chỗ khác (quầy / chuyển khoản tự động).
+    var daThanhToanNoiKhac: Bool { status == nil && conLai <= 0 }
+
+    /// Chỉ hiện nút mà backend (ShipperActionService) sẽ CHẤP NHẬN — AppShipperAndroid hiện đủ 4 nút cho
+    /// mọi đơn chưa chọn kể cả đơn đã thu đủ (bấm vào mới bị server báo lỗi), iOS chặn trước:
+    /// - Tiền mặt / CK / Tí nữa CK: chưa shipper xử lý (GhiChuShipper trống) VÀ còn tiền thu.
+    /// - Ghi nợ: như trên + đơn có gắn khách.
+    /// - Trả nợ: khách có nợ cũ, đơn đã thu đủ, và đơn không phải CK/Ghi nợ.
     var actions: [ShipAction] {
-        let traNo: [ShipAction] = tongNo > 0 && conLai <= 0 ? [.traNo] : []
-        switch status {
-        case nil: return [.tienMat, .chuyenKhoan, .tiNua, .ghiNo] + traNo
-        case .tienMat?, .tiNua?: return traNo
-        default: return []
+        var list: [ShipAction] = []
+        if status == nil && conLai > 0 {
+            list = [.tienMat, .chuyenKhoan, .tiNua]
+            if khachHangId != nil { list.append(.ghiNo) }
         }
+        if khachHangId != nil && tongNo > 0 && conLai <= 0 && status != .chuyenKhoan && status != .ghiNo {
+            list.append(.traNo)
+        }
+        return list
     }
+
+    /// Tiền đơn shipper đã tự thu — server trừ khoản này khỏi tiền khách đưa khi tính Trả nợ (chỉ đếm
+    /// thanh toán ghi chú "Shipper"). Đơn trả ở quầy thì shipper chưa thu gì → toàn bộ tiền đưa là trả nợ.
+    var shipperDaThu: Double { status == .tienMat ? thanhTien : 0 }
 
     /// Backend nối "| Trả nợ: 150.000 ₫" vào GhiChuShipper sau mỗi lần trả nợ (ShipperActionService.TraNoAsync)
     /// — cộng các số đó lại. Dấu phân cách nghìn tuỳ culture server (. hoặc ,) nên chỉ lấy chữ số.
@@ -294,14 +307,14 @@ private struct ShipOrderRows: View {
             }
             Spacer(minLength: 8)
             VStack(alignment: .trailing, spacing: 6) {
-                MoneyText(value: hd.status == nil ? hd.conLai : hd.thanhTien, font: .headline,
-                          color: hd.status == nil ? .primary : .secondary)
+                // Còn tiền phải thu → số còn lại (đậm); đã xong → tiền đơn (mờ).
+                let conThu = hd.status == nil && hd.conLai > 0
+                MoneyText(value: conThu ? hd.conLai : hd.thanhTien, font: .headline,
+                          color: conThu ? .primary : .secondary)
                 if let s = hd.status {
-                    Label(s.label, systemImage: s.symbol)
-                        .font(.caption.weight(.semibold))
-                        .foregroundColor(s.color)
-                        .padding(.horizontal, 8).padding(.vertical, 3)
-                        .background(s.color.opacity(0.12), in: Capsule())
+                    badge(s.label, s.symbol, s.color)
+                } else if hd.daThanhToanNoiKhac {
+                    badge("Đã thanh toán", "checkmark.circle.fill", .secondary)
                 }
             }
         }
@@ -345,5 +358,13 @@ private struct ShipOrderRows: View {
             .padding(.vertical, 6)
             .overlay { if busy { ProgressView() } }
         }
+    }
+
+    private func badge(_ text: String, _ symbol: String, _ color: Color) -> some View {
+        Label(text, systemImage: symbol)
+            .font(.caption.weight(.semibold))
+            .foregroundColor(color)
+            .padding(.horizontal, 8).padding(.vertical, 3)
+            .background(color.opacity(0.12), in: Capsule())
     }
 }
