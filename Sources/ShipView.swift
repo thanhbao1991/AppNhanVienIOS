@@ -2,8 +2,8 @@ import SwiftUI
 
 /// Tab Ship — bản rút gọn của AppShipperAndroid (MainActivity + HoaDonAdapter), cùng API /api/shipper/*
 /// nhưng lọc đơn ESC cho shipper "Nhã" (Android là Khánh) và CHỈ đơn phân loại Ship (bỏ AppDatHang).
-/// Giữ: tổng Tiền mặt/CK/Trả nợ trong ngày, danh sách đơn, 5 thao tác Tiền mặt/Chuyển khoản/Tí nữa CK/
-/// Ghi nợ/Trả nợ. Bỏ: dải chip theo nhóm, đọc TTS, dịch vụ nền SignalR, popup — tải lại khi mở tab,
+/// Giữ: tổng Tiền mặt/CK/Trả nợ trong ngày, danh sách đơn, 4 thao tác Tiền mặt/Chuyển khoản/Ghi nợ
+/// (= F1/F4/F12 Desktop)/Trả nợ. Bỏ: nút Tí nữa CK, dải chip theo nhóm, đọc TTS, dịch vụ nền SignalR, popup — tải lại khi mở tab,
 /// kéo xuống hoặc quay lại app.
 struct ShipView: View {
     static let shipper = "Nhã"
@@ -250,13 +250,14 @@ extension ShipperHoaDonDto {
 
     /// Chỉ hiện nút mà backend (ShipperActionService) sẽ CHẤP NHẬN — AppShipperAndroid hiện đủ 4 nút cho
     /// mọi đơn chưa chọn kể cả đơn đã thu đủ (bấm vào mới bị server báo lỗi), iOS chặn trước:
-    /// - Tiền mặt / CK / Tí nữa CK: chưa shipper xử lý (GhiChuShipper trống) VÀ còn tiền thu.
-    /// - Ghi nợ: như trên + đơn có gắn khách.
+    /// - Tiền mặt / CK: chưa shipper xử lý (GhiChuShipper trống) VÀ còn tiền thu — khớp F1/F4 Desktop.
+    ///   Không có "Tí nữa CK" (Desktop không có phím tương ứng; Nhã ở quầy, khách CK thì SePay tự thu).
+    /// - Ghi nợ (F12): như trên + đơn có gắn khách.
     /// - Trả nợ: khách có nợ cũ, đơn đã thu đủ, và đơn không phải CK/Ghi nợ.
     var actions: [ShipAction] {
         var list: [ShipAction] = []
         if status == nil && conLai > 0 {
-            list = [.tienMat, .chuyenKhoan, .tiNua]
+            list = [.tienMat, .chuyenKhoan]
             if khachHangId != nil { list.append(.ghiNo) }
         }
         if khachHangId != nil && tongNo > 0 && conLai <= 0 && status != .chuyenKhoan && status != .ghiNo {
