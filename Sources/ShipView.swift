@@ -1,9 +1,10 @@
 import SwiftUI
 
 /// Tab Ship — bản rút gọn của AppShipperAndroid (MainActivity + HoaDonAdapter), cùng API /api/shipper/*
-/// nhưng lọc đơn ESC cho shipper "Nhã" (Android là Khánh). Giữ: tổng Tiền mặt/CK/Trả nợ trong ngày, danh
-/// sách đơn, 5 thao tác Tiền mặt/Chuyển khoản/Tí nữa CK/Ghi nợ/Trả nợ. Bỏ: dải chip theo nhóm, đọc TTS,
-/// dịch vụ nền SignalR, popup — tải lại khi mở tab, kéo xuống hoặc quay lại app.
+/// nhưng lọc đơn ESC cho shipper "Nhã" (Android là Khánh) và CHỈ đơn phân loại Ship (bỏ AppDatHang).
+/// Giữ: tổng Tiền mặt/CK/Trả nợ trong ngày, danh sách đơn, 5 thao tác Tiền mặt/Chuyển khoản/Tí nữa CK/
+/// Ghi nợ/Trả nợ. Bỏ: dải chip theo nhóm, đọc TTS, dịch vụ nền SignalR, popup — tải lại khi mở tab,
+/// kéo xuống hoặc quay lại app.
 struct ShipView: View {
     static let shipper = "Nhã"
 
@@ -14,66 +15,70 @@ struct ShipView: View {
     @State private var hasLoaded = false
     @State private var loadFailed = false
     @State private var loadGeneration = 0
-    @State private var isBusy = false
+    @State private var busyId: String?
 
     @State private var pending: PendingAction?
     @State private var traNoTarget: ShipperHoaDonDto?
     @State private var traNoInput = ""
-    @State private var traNoConfirm: (hd: ShipperHoaDonDto, nghin: Int, duKien: Double)?
+    @State private var traNoConfirm: TraNoConfirm?
     @State private var alertMessage: String?
 
     var body: some View {
         NavigationStack {
-            VStack(spacing: 0) {
-                DayDateBar(
-                    date: $currentDate,
-                    trailing: AnyView(AccountButton(isLoggedIn: $isLoggedIn, tint: .white)),
-                    tinted: true
-                ) { Task { await load() } }
-
+            Group {
                 if !hasLoaded {
                     fullScreenLoading()
                 } else {
-                    ScrollView {
-                        VStack(spacing: 10) {
-                            if loadFailed {
-                                ThongKeLoadErrorBanner(text: "Chưa tải được danh sách đơn") { Task { await load() } }
-                            }
-                            summaryRow
-                            if hoaDons.isEmpty && !loadFailed {
-                                Text("Chưa có đơn ship nào")
-                                    .font(.subheadline)
-                                    .foregroundColor(.textMuted)
-                                    .padding(.top, 40)
-                            }
-                            ForEach(hoaDons) { hd in
-                                ShipCard(hd: hd, disabled: isBusy) { action in
-                                    if action == .traNo { startTraNo(hd) } else { pending = PendingAction(hd: hd, kind: action) }
-                                }
+                    List {
+                        if loadFailed {
+                            Section { LoadErrorRow(text: "Chưa tải được danh sách đơn") { Task { await load() } } }
+                        }
+                        Section { summaryRow }
+                        if hoaDons.isEmpty && !loadFailed {
+                            Section {
+                                EmptyStateView(symbol: "bicycle", title: "Chưa có đơn ship",
+                                               message: "Đơn Ship giao cho \(Self.shipper) trong ngày sẽ hiện ở đây.")
                             }
                         }
-                        .padding(12)
+                        ForEach(Array(hoaDons.enumerated()), id: \.element.id) { index, hd in
+                            Section {
+                                ShipOrderRows(hd: hd, busy: busyId == hd.id, disabled: busyId != nil) { action in
+                                    if action == .traNo { startTraNo(hd) } else { pending = PendingAction(hd: hd, kind: action) }
+                                }
+                            } header: {
+                                if index == 0 { Text("\(hoaDons.count) đơn") }
+                            }
+                        }
                     }
+                    .listStyle(.insetGrouped)
                     .refreshable { await load() }
                 }
             }
-            .navigationBarHidden(true)
+            .safeAreaInset(edge: .top, spacing: 0) {
+                DateStepperBar(date: $currentDate) { Task { await load() } }
+            }
+            .navigationTitle("Ship · \(Self.shipper)")
+            .staffToolbar(isLoggedIn: $isLoggedIn)
         }
         .task { await load() }
         .onChange(of: scenePhase) { phase in
             if phase == .active && hasLoaded { Task { await load() } }
         }
         .confirmationDialog(
-            pending.map { "Xác nhận \($0.kind.label.lowercased()) cho \($0.hd.tenHienThi)?" } ?? "",
+            pending.map { "\($0.kind.label) — \($0.hd.tenHienThi)" } ?? "",
             isPresented: Binding(get: { pending != nil }, set: { if !$0 { pending = nil } }),
             titleVisibility: .visible,
             presenting: pending
         ) { p in
-            Button(p.kind.label) { Task { await run(p.kind, hd: p.hd) } }
+            Button("Xác nhận \(p.kind.label.lowercased())", role: p.kind == .ghiNo ? ButtonRole.destructive : nil) {
+                Task { await run(p.kind, hd: p.hd) }
+            }
             Button("Huỷ", role: .cancel) {}
+        } message: { p in
+            Text(p.hd.conLai > 0 ? "Đơn còn \(HoaDonFormatting.money(p.hd.conLai))" : "")
         }
         .alert(
-            traNoTarget.map { "Khách \($0.tenHienThi) đang nợ \(HoaDonFormatting.money($0.tongNo))" } ?? "",
+            traNoTarget.map { "\($0.tenHienThi) đang nợ \(HoaDonFormatting.money($0.tongNo))" } ?? "",
             isPresented: Binding(get: { traNoTarget != nil }, set: { if !$0 { traNoTarget = nil } }),
             presenting: traNoTarget
         ) { hd in
@@ -108,11 +113,24 @@ struct ShipView: View {
         let tienMat = hoaDons.filter { $0.status == .tienMat }.reduce(0) { $0 + $1.thanhTien }
         let ck = hoaDons.filter { $0.status == .chuyenKhoan }.reduce(0) { $0 + $1.thanhTien }
         let traNo = hoaDons.reduce(0) { $0 + $1.traNoDaThu }
-        return HStack(spacing: 8) {
-            SummaryPill(title: "Tiền mặt", value: tienMat, color: .successColor)
-            SummaryPill(title: "Chuyển khoản", value: ck, color: .thongKeBlue)
-            SummaryPill(title: "Trả nợ", value: traNo, color: .thongKePurple)
+        return HStack(spacing: 0) {
+            summaryCell("Tiền mặt", tienMat, .successColor)
+            Divider().frame(height: 32)
+            summaryCell("Chuyển khoản", ck, .thongKeBlue)
+            Divider().frame(height: 32)
+            summaryCell("Trả nợ", traNo, .thongKePurple)
         }
+        .padding(.vertical, 4)
+    }
+
+    private func summaryCell(_ title: String, _ value: Double, _ color: Color) -> some View {
+        VStack(spacing: 3) {
+            Text(title).font(.caption).foregroundColor(.secondary)
+            MoneyText(value: value, font: .subheadline.weight(.semibold), color: color)
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
+        }
+        .frame(maxWidth: .infinity)
     }
 
     private func load() async {
@@ -121,17 +139,13 @@ struct ShipView: View {
         let ymd = DateNavFormat.queryDate.string(from: currentDate)
         let list = await APIClient.shared.getShipperList(dateYmd: ymd, shipper: Self.shipper)
         guard generation == loadGeneration else { return }
-        if let list { hoaDons = list } else if !hasLoaded { hoaDons = [] }
+        // Chỉ đơn Ship — AppDatHang (đơn app khách) không hiện ở tab này.
+        if let list { hoaDons = list.filter { ($0.phanLoai ?? "Ship") == "Ship" } } else if !hasLoaded { hoaDons = [] }
         loadFailed = list == nil
         hasLoaded = true
     }
 
     private func startTraNo(_ hd: ShipperHoaDonDto) {
-        if hd.tongNo <= 0 { alertMessage = "Khách \(hd.tenHienThi) không còn nợ."; return }
-        if hd.conLai > 0 {
-            alertMessage = "Đơn này còn \(HoaDonFormatting.money(hd.conLai)).\nHãy bấm Tiền mặt trước rồi mới thu nợ."
-            return
-        }
         traNoInput = ""
         traNoTarget = hd
     }
@@ -146,25 +160,31 @@ struct ShipView: View {
             alertMessage = "Tổng tiền khách đưa phải lớn hơn tiền đơn hôm nay \(HoaDonFormatting.money(hd.thanhTien))"
             return
         }
-        traNoConfirm = (hd, nghin, min(khachDua - hd.thanhTien, hd.tongNo))
+        traNoConfirm = TraNoConfirm(hd: hd, nghin: nghin, duKien: min(khachDua - hd.thanhTien, hd.tongNo))
     }
 
     private func run(_ kind: ShipAction, hd: ShipperHoaDonDto, traNoNghin: Int = 0) async {
-        guard !isBusy else { return }
-        isBusy = true
+        guard busyId == nil else { return }
+        busyId = hd.id
         let result = await APIClient.shared.shipperAction(kind, id: hd.id, traNoNghin: traNoNghin)
-        isBusy = false
         if result.success {
             await load()
         } else {
             alertMessage = result.message ?? "Cập nhật thất bại"
         }
+        busyId = nil
     }
 }
 
 private struct PendingAction {
     let hd: ShipperHoaDonDto
     let kind: ShipAction
+}
+
+private struct TraNoConfirm {
+    let hd: ShipperHoaDonDto
+    let nghin: Int
+    let duKien: Double
 }
 
 enum ShipAction {
@@ -177,6 +197,16 @@ enum ShipAction {
         case .tiNua: return "Tí nữa CK"
         case .ghiNo: return "Ghi nợ"
         case .traNo: return "Trả nợ"
+        }
+    }
+
+    var symbol: String {
+        switch self {
+        case .tienMat: return "banknote"
+        case .chuyenKhoan: return "qrcode"
+        case .tiNua: return "clock"
+        case .ghiNo: return "book.closed"
+        case .traNo: return "arrow.uturn.left.circle"
         }
     }
 
@@ -240,95 +270,80 @@ extension ShipperHoaDonDto {
     }
 }
 
-private struct SummaryPill: View {
-    let title: String
-    let value: Double?
-    let color: Color
-
-    var body: some View {
-        VStack(spacing: 2) {
-            Text(title).font(.caption).foregroundColor(.textMuted)
-            Text(value.map(HoaDonFormatting.money) ?? "—")
-                .font(.subheadline.bold())
-                .foregroundColor(color)
-                .monospacedDigit()
-                .lineLimit(1)
-                .minimumScaleFactor(0.7)
-        }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 10)
-        .background(color.opacity(0.08))
-        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-    }
-}
-
-private struct ShipCard: View {
+/// Các dòng của 1 đơn trong Section: thông tin khách → liên hệ/nợ → nút thao tác.
+private struct ShipOrderRows: View {
     let hd: ShipperHoaDonDto
+    let busy: Bool
     let disabled: Bool
     let onAction: (ShipAction) -> Void
 
-    private let columns = [GridItem(.flexible(), spacing: 8), GridItem(.flexible(), spacing: 8)]
+    private let columns = [GridItem(.flexible(), spacing: 10), GridItem(.flexible(), spacing: 10)]
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            HStack(alignment: .firstTextBaseline) {
+        HStack(alignment: .top, spacing: 12) {
+            VStack(alignment: .leading, spacing: 4) {
                 Text(hd.tenHienThi).font(.headline)
+                if let dc = hd.diaChiText, !dc.isEmpty {
+                    Text(dc).font(.subheadline).foregroundColor(.secondary)
+                }
                 if let gio = hd.gioShip {
-                    Text(gio).font(.caption.weight(.semibold)).foregroundColor(.textMuted)
+                    Label("Giao lúc \(gio)", systemImage: "clock")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
                 }
-                Spacer()
+            }
+            Spacer(minLength: 8)
+            VStack(alignment: .trailing, spacing: 6) {
+                MoneyText(value: hd.status == nil ? hd.conLai : hd.thanhTien, font: .headline,
+                          color: hd.status == nil ? .primary : .secondary)
                 if let s = hd.status {
-                    Text(s.label)
-                        .font(.caption.bold())
-                        .foregroundColor(.white)
-                        .padding(.horizontal, 10).padding(.vertical, 4)
-                        .background(Capsule().fill(s.color))
-                } else {
-                    Text(HoaDonFormatting.money(hd.conLai))
-                        .font(.headline)
-                        .foregroundColor(.brandPrimary)
-                        .monospacedDigit()
+                    Label(s.label, systemImage: s.symbol)
+                        .font(.caption.weight(.semibold))
+                        .foregroundColor(s.color)
+                        .padding(.horizontal, 8).padding(.vertical, 3)
+                        .background(s.color.opacity(0.12), in: Capsule())
                 }
-            }
-            if let dc = hd.diaChiText, !dc.isEmpty {
-                Text(dc).font(.subheadline).foregroundColor(.secondary)
-            }
-            if let sdt = hd.soDienThoaiText, !sdt.isEmpty,
-               let url = URL(string: "tel:\(sdt.filter { $0.isNumber || $0 == "+" })") {
-                Link(destination: url) {
-                    Label(sdt, systemImage: "phone.fill").font(.subheadline.weight(.medium))
-                }
-            }
-            if hd.tongNo > 0 {
-                Text("Tổng nợ: \(HoaDonFormatting.money(hd.tongNo))")
-                    .font(.footnote.weight(.semibold))
-                    .foregroundColor(.dangerColor)
-            }
-            let actions = hd.actions
-            if !actions.isEmpty {
-                LazyVGrid(columns: columns, spacing: 8) {
-                    ForEach(actions, id: \.self) { a in
-                        Button { onAction(a) } label: {
-                            Text(a.label)
-                                .font(.subheadline.bold())
-                                .frame(maxWidth: .infinity)
-                                .padding(.vertical, 10)
-                                .foregroundColor(.white)
-                                .background(a.color)
-                                .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-                        }
-                        .buttonStyle(.plain)
-                        .disabled(disabled)
-                        .opacity(disabled ? 0.5 : 1)
-                    }
-                }
-                .padding(.top, 4)
             }
         }
-        .padding(12)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background((hd.status?.color ?? .brandPrimary).opacity(hd.status == nil ? 0.05 : 0.10))
-        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-        .shadow(color: .black.opacity(0.06), radius: 6, x: 0, y: 2)
+        .padding(.vertical, 4)
+
+        if let sdt = hd.soDienThoaiText, !sdt.isEmpty,
+           let url = URL(string: "tel:\(sdt.filter { $0.isNumber || $0 == "+" })") {
+            Link(destination: url) {
+                HStack {
+                    Label(sdt, systemImage: "phone.fill")
+                    Spacer()
+                    Image(systemName: "chevron.right").font(.caption.weight(.semibold)).foregroundColor(.secondary.opacity(0.5))
+                }
+            }
+        }
+
+        if hd.tongNo > 0 {
+            HStack {
+                Label("Khách đang nợ", systemImage: "exclamationmark.triangle.fill")
+                    .foregroundColor(.dangerColor)
+                Spacer()
+                MoneyText(value: hd.tongNo, font: .body.weight(.semibold), color: .dangerColor)
+            }
+            .font(.subheadline)
+        }
+
+        let actions = hd.actions
+        if !actions.isEmpty {
+            LazyVGrid(columns: columns, spacing: 10) {
+                ForEach(actions, id: \.self) { a in
+                    Button { onAction(a) } label: {
+                        Label(a.label, systemImage: a.symbol)
+                            .font(.subheadline.weight(.semibold))
+                            .frame(maxWidth: .infinity, minHeight: 34)
+                    }
+                    .buttonStyle(.bordered)
+                    .tint(a.color)
+                    .disabled(disabled)
+                }
+            }
+            .padding(.vertical, 6)
+            .overlay { if busy { ProgressView() } }
+        }
     }
 }

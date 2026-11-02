@@ -11,63 +11,49 @@ struct LoginView: View {
     private enum Field { case taiKhoan, matKhau }
 
     var body: some View {
-        ZStack {
-            LinearGradient(
-                colors: [Color.brandPrimary, Color.brandPrimary.opacity(0.75)],
-                startPoint: .top,
-                endPoint: .bottom
-            )
-            .ignoresSafeArea()
+        // ScrollView để SwiftUI tự đẩy form lên khi bàn phím hiện.
+        ScrollView {
+            VStack(spacing: 28) {
+                logoHeader
+                    .padding(.top, 72)
 
-            // ScrollView (thay vì VStack trần) để SwiftUI tự tránh bàn phím - VStack đứng riêng
-            // trong ZStack KHÔNG được hệ thống tự đẩy lên khi bàn phím hiện.
-            ScrollView {
-                VStack(spacing: 0) {
-                    Spacer(minLength: 40)
-
-                    logoHeader
-                        .padding(.bottom, 32)
-
-                    VStack(spacing: 22) {
-                        if let errorText {
-                            HStack(spacing: 8) {
-                                Image(systemName: "exclamationmark.triangle.fill")
-                                Text(errorText)
-                            }
+                VStack(spacing: 14) {
+                    if let errorText {
+                        Label(errorText, systemImage: "exclamationmark.triangle.fill")
                             .font(.footnote.weight(.medium))
                             .foregroundColor(.red)
-                            .padding(.horizontal, 14)
-                            .padding(.vertical, 10)
                             .frame(maxWidth: .infinity, alignment: .leading)
-                            .background(Color.red.opacity(0.1), in: RoundedRectangle(cornerRadius: 12))
-                        }
-
-                        manualForm
                     }
-                    .padding(24)
-                    .background(
-                        RoundedRectangle(cornerRadius: 24)
-                            .fill(Color(.secondarySystemGroupedBackground))
-                            .shadow(color: .black.opacity(0.18), radius: 24, x: 0, y: 12)
-                    )
+                    manualForm
                 }
-                .padding(28)
-                .frame(maxWidth: 400)
-                .frame(maxWidth: .infinity)
             }
+            .padding(.horizontal, 24)
+            .frame(maxWidth: 420)
+            .frame(maxWidth: .infinity)
         }
+        .scrollDismissesKeyboard(.interactively)
+        .background(Color(.systemGroupedBackground).ignoresSafeArea())
     }
 
     private var logoHeader: some View {
-        VStack(spacing: 8) {
-            Text("Đenn Coffee")
-                .font(.system(size: 34, weight: .bold, design: .rounded))
-            Text("Chi tiêu — dành cho nhân viên")
-                .font(.subheadline.weight(.medium))
-                .opacity(0.85)
+        VStack(spacing: 14) {
+            Image(systemName: "cup.and.saucer.fill")
+                .font(.system(size: 38, weight: .semibold))
+                .foregroundColor(.white)
+                .frame(width: 84, height: 84)
+                .background(
+                    LinearGradient(colors: [Color.brandPrimary.opacity(0.85), Color.brandPrimary], startPoint: .top, endPoint: .bottom),
+                    in: RoundedRectangle(cornerRadius: 20, style: .continuous)
+                )
+                .shadow(color: Color.brandPrimary.opacity(0.3), radius: 12, x: 0, y: 6)
+            VStack(spacing: 4) {
+                Text("Đenn Coffee")
+                    .font(.system(size: 30, weight: .bold, design: .rounded))
+                Text("Ứng dụng nhân viên")
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+            }
         }
-        .foregroundColor(.white)
-        .shadow(color: .black.opacity(0.2), radius: 8, x: 0, y: 4)
     }
 
     private var manualForm: some View {
@@ -108,40 +94,32 @@ struct LoginView: View {
                     if loading {
                         ProgressView().tint(.white)
                     } else {
-                        Text("Đăng nhập")
-                            .font(.headline)
+                        Text("Đăng nhập").font(.headline)
                     }
                 }
                 .frame(maxWidth: .infinity)
-                .frame(height: 52)
+                .frame(height: 30)
             }
-            .foregroundColor(.white)
-            .background(
-                (taiKhoan.isEmpty || matKhau.isEmpty || loading) ? Color.brandPrimary.opacity(0.35) : Color.brandPrimary,
-                in: RoundedRectangle(cornerRadius: 14)
-            )
-            .shadow(
-                color: Color.brandPrimary.opacity((taiKhoan.isEmpty || matKhau.isEmpty || loading) ? 0 : 0.35),
-                radius: 12, x: 0, y: 6
-            )
+            .buttonStyle(.borderedProminent)
+            .buttonBorderShape(.roundedRectangle(radius: 14))
+            .controlSize(.large)
             .disabled(loading || taiKhoan.isEmpty || matKhau.isEmpty)
-            .animation(.easeInOut(duration: 0.15), value: taiKhoan.isEmpty || matKhau.isEmpty)
-            .padding(.top, 4)
+            .padding(.top, 8)
         }
     }
 
     @ViewBuilder
     private func fieldContainer<Content: View>(icon: String, isFocused: Bool, @ViewBuilder content: () -> Content) -> some View {
         HStack(spacing: 10) {
-            Image(systemName: icon).foregroundColor(isFocused ? .brandPrimary : .textMuted).frame(width: 20)
+            Image(systemName: icon).foregroundColor(isFocused ? .brandPrimary : .secondary).frame(width: 20)
             content()
         }
         .padding(.horizontal, 14)
-        .frame(height: 50)
-        .background(Color(.tertiarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 14))
+        .frame(height: 52)
+        .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
         .overlay(
-            RoundedRectangle(cornerRadius: 14)
-                .strokeBorder(isFocused ? Color.brandPrimary : Color(.separator).opacity(0.4), lineWidth: isFocused ? 1.5 : 1)
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .strokeBorder(isFocused ? Color.brandPrimary : Color.clear, lineWidth: 1.5)
         )
         .animation(.easeInOut(duration: 0.15), value: isFocused)
     }

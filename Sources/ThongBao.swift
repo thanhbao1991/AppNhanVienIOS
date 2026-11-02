@@ -23,29 +23,25 @@ final class ThongBaoBadge: ObservableObject {
 }
 
 struct ThongBaoButton: View {
-    var tint: Color = .primary
     @ObservedObject private var badge = ThongBaoBadge.shared
     @Environment(\.scenePhase) private var scenePhase
 
     var body: some View {
         Button { badge.moChuong = true } label: {
-            Image(systemName: "bell.fill")
-                .font(.system(size: 20))
+            Image(systemName: badge.soChuaXem > 0 ? "bell.badge" : "bell")
+                .font(.system(size: 18))
                 .overlay(alignment: .topTrailing) {
                     if badge.soChuaXem > 0 {
                         Text(badge.soChuaXem > 49 ? "50+" : "\(badge.soChuaXem)")
                             .font(.caption2.bold())
                             .foregroundColor(.white)
-                            .padding(.horizontal, 5)
-                            .frame(minWidth: 18, minHeight: 18)
-                            .background(Color.dangerColor, in: Capsule())
-                            .overlay(Capsule().stroke(Color.white, lineWidth: 1.5))
-                            .offset(x: 10, y: -8)
+                            .padding(.horizontal, 4)
+                            .frame(minWidth: 17, minHeight: 17)
+                            .background(Color.red, in: Capsule())
+                            .offset(x: 9, y: -7)
                     }
                 }
         }
-        .buttonStyle(.plain)
-        .foregroundColor(tint)
         .accessibilityLabel(badge.soChuaXem > 0 ? "Thông báo, \(badge.soChuaXem) chưa xem" : "Thông báo")
         // Sheet gắn 1 chỗ ở ContentView — nút này có mặt ở cả 4 tab, gắn ở đây sẽ mở chồng nhiều sheet.
         .task { await badge.refresh() }
@@ -72,33 +68,33 @@ struct ThongBaoListView: View {
             Group {
                 if !hasLoaded {
                     fullScreenLoading()
-                } else if items.isEmpty {
-                    Text(loadFailed ? "Không tải được thông báo, kéo xuống để thử lại" : "Chưa có thông báo nào")
-                        .foregroundColor(.textMuted)
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
                 } else {
                     List {
+                        if items.isEmpty {
+                            EmptyStateView(
+                                symbol: loadFailed ? "wifi.exclamationmark" : "bell.slash",
+                                title: loadFailed ? "Không tải được thông báo" : "Chưa có thông báo",
+                                message: loadFailed ? "Kéo xuống để thử lại." : nil
+                            )
+                        }
                         ForEach(items) { item in
                             ThongBaoRowView(item: item, moi: ThongBaoFormatting.moc(item.taoLuc) > daXemLucMo)
-                                .listRowInsets(EdgeInsets(top: 8, leading: 12, bottom: 8, trailing: 12))
                         }
-                        if hasMore {
+                        if hasMore && !items.isEmpty {
                             ProgressView()
                                 .frame(maxWidth: .infinity)
-                                .listRowSeparator(.hidden)
                                 .task(id: items.count) { await loadMore() }
                         }
                     }
-                    .listStyle(.plain)
+                    .listStyle(.insetGrouped)
+                    .refreshable { await load() }
                 }
             }
-            .refreshable { await load() }
             .navigationTitle("Thông báo")
             .navigationBarTitleDisplayMode(.inline)
-            .brandToolbarBackground()
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Đóng") { dismiss() }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Xong") { dismiss() }
                 }
             }
         }
@@ -132,27 +128,26 @@ private struct ThongBaoRowView: View {
     let moi: Bool
 
     var body: some View {
-        HStack(alignment: .top, spacing: 10) {
-            Text(ThongBaoFormatting.emoji(item.loai))
-                .font(.body)
-                .frame(width: 22, height: 22)
+        let style = ThongBaoFormatting.style(item.loai)
+        HStack(alignment: .top, spacing: 12) {
+            IconBadge(symbol: style.symbol, color: style.color, size: 32)
 
-            VStack(alignment: .leading, spacing: 2) {
-                Text(ThongBaoFormatting.tieuDe(item.loai))
-                    .font(.subheadline.bold())
+            VStack(alignment: .leading, spacing: 3) {
+                HStack(alignment: .firstTextBaseline) {
+                    Text(ThongBaoFormatting.tieuDe(item.loai))
+                        .font(.subheadline.weight(.semibold))
+                    Spacer()
+                    Text(ThongBaoFormatting.thoiGian(item.taoLuc))
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                    if moi {
+                        Circle().fill(Color.brandPrimary).frame(width: 8, height: 8)
+                    }
+                }
                 Text(item.noiDung)
                     .font(.subheadline)
-                    .fontWeight(moi ? .semibold : .regular)
-                    .foregroundColor(.primary)
-                Text(ThongBaoFormatting.thoiGian(item.taoLuc))
-                    .font(.caption)
-                    .foregroundColor(.textMuted)
-            }
-
-            Spacer(minLength: 0)
-
-            if moi {
-                Circle().fill(Color.brandPrimary).frame(width: 8, height: 8).padding(.top, 6)
+                    .fontWeight(moi ? .medium : .regular)
+                    .foregroundColor(moi ? .primary : .secondary)
             }
         }
         .padding(.vertical, 4)
@@ -176,18 +171,18 @@ enum ThongBaoFormatting {
         }
     }
 
-    static func emoji(_ loai: String) -> String {
+    static func style(_ loai: String) -> (symbol: String, color: Color) {
         switch loai {
-        case "HoaDonNew": return "➕"
-        case "HoaDonNewShip": return "🛵"
-        case "HoaDonNewMuaVe": return "🛍️"
-        case "HoaDonNewTaiCho": return "🪑"
-        case "HoaDonNewApp": return "📱"
-        case "HoaDonNewMuaHo": return "✋"
-        case "HoaDonNewAppDatHang": return "🛒"
-        case "HoaDonEdit": return "✏️"
-        case "HoaDonDel": return "🗑️"
-        default: return "🔔"
+        case "HoaDonNew": return ("plus", .brandPrimary)
+        case "HoaDonNewShip": return ("bicycle", .thongKeOrange)
+        case "HoaDonNewMuaVe": return ("bag.fill", .thongKeTeal)
+        case "HoaDonNewTaiCho": return ("cup.and.saucer.fill", .thongKeBrown)
+        case "HoaDonNewApp": return ("iphone", .thongKePurple)
+        case "HoaDonNewMuaHo": return ("hand.raised.fill", .thongKeGreen)
+        case "HoaDonNewAppDatHang": return ("cart.fill", .thongKeBlue)
+        case "HoaDonEdit": return ("pencil", .orange)
+        case "HoaDonDel": return ("trash.fill", .thongKeRed)
+        default: return ("bell.fill", .gray)
         }
     }
 

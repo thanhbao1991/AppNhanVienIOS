@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// App nhân viên có 5 tab (theo thứ tự): Thống Kê (chỉ theo ngày), Ship, Chi Tiêu, Tính Lương (Nhã), Ảnh Menu.
+/// App nhân viên có 5 tab (theo thứ tự): Thống kê (theo ngày), Ship, Chi tiêu, Lương (Nhã), Ảnh menu.
 /// Chưa đăng nhập → LoginView; refresh token bị thu hồi (APIClient bắn .sessionExpired) → tự quay về LoginView.
 struct ContentView: View {
     @State private var isLoggedIn = Prefs.isLoggedIn
@@ -11,17 +11,16 @@ struct ContentView: View {
             if isLoggedIn {
                 TabView {
                     ThongKeView(isLoggedIn: $isLoggedIn)
-                        .tabItem { Label("Thống Kê", systemImage: "chart.bar.fill") }
+                        .tabItem { Label("Thống kê", systemImage: "chart.bar.xaxis") }
                     ShipView(isLoggedIn: $isLoggedIn)
                         .tabItem { Label("Ship", systemImage: "bicycle") }
                     ChiTieuListView(isLoggedIn: $isLoggedIn)
-                        .tabItem { Label("Chi Tiêu", systemImage: "banknote") }
+                        .tabItem { Label("Chi tiêu", systemImage: "cart") }
                     TinhLuongView(isLoggedIn: $isLoggedIn)
-                        .tabItem { Label("Tính Lương", systemImage: "person.text.rectangle") }
+                        .tabItem { Label("Lương", systemImage: "banknote") }
                     SanPhamHinhAnhListView(isLoggedIn: $isLoggedIn)
-                        .tabItem { Label("Ảnh Menu", systemImage: "photo.on.rectangle") }
+                        .tabItem { Label("Ảnh menu", systemImage: "photo.on.rectangle.angled") }
                 }
-                .tint(.brandPrimary)
                 // Phiên cũ còn hiệu lực lúc mở app, hoặc vừa đăng nhập xong → xin quyền + đăng ký push.
                 .onAppear { PushNotifications.requestAndRegister() }
                 .sheet(isPresented: $thongBao.moChuong) { ThongBaoListView() }
@@ -29,6 +28,7 @@ struct ContentView: View {
                 LoginView(isLoggedIn: $isLoggedIn)
             }
         }
+        .tint(.brandPrimary)
         .onReceive(NotificationCenter.default.publisher(for: .sessionExpired)) { _ in
             isLoggedIn = false
         }

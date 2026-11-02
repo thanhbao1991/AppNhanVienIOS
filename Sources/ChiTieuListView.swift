@@ -1,264 +1,203 @@
 import SwiftUI
 
-/// Chi tiêu hằng ngày — GET/PUT/DELETE /api/ChiTieuHangNgay. List theo ngày (DayNavBar) + search.
-/// Bấm vào dòng mở sheet chi tiết (Sửa/Xoá qua ActionButtonView + confirmationDialog trước khi xoá)
-/// — khớp phong cách HoaDonDetailView, thay cho swipeActions xoá thẳng không xác nhận trước đây. Nút
-/// "+" thêm chi tiêu nằm ở footer, khớp bố cục HoaDonListView (nút tròn cạnh tổng tiền).
+/// Chi tiêu hằng ngày — GET/POST/PUT/DELETE /api/ChiTieuHangNgay. List theo ngày, chia 2 nhóm "Chi
+/// ngày"/"Bill tháng", ô tìm kiếm chuẩn iOS. Chạm 1 dòng để sửa (form có nút Xoá), vuốt trái để xoá —
+/// mọi lần xoá đều qua bước xác nhận.
 struct ChiTieuListView: View {
     @Binding var isLoggedIn: Bool
     @State private var currentDate = Date()
     @State private var items: [ChiTieuHangNgayDto] = []
-    @State private var loading = false
     @State private var hasLoaded = false
     @State private var searchText = ""
-    @State private var selectedItem: ChiTieuHangNgayDto?
+    @State private var editingItem: ChiTieuHangNgayDto?
+    @State private var deletingItem: ChiTieuHangNgayDto?
     @State private var showAdd = false
+    @State private var errorMessage: String?
 
-    private var filteredItems: [ChiTieuHangNgayDto] {
+    private var filtered: [ChiTieuHangNgayDto] {
         items.filter { anyMatchesSearch(searchText, $0.ten, $0.ghiChu) }
     }
-
-    private var totalText: String {
-        HoaDonFormatting.money(filteredItems.reduce(0) { $0 + $1.thanhTien })
-    }
-
-    private var totalNgayText: String {
-        HoaDonFormatting.money(filteredItems.filter { !$0.billThang }.reduce(0) { $0 + $1.thanhTien })
-    }
-
-    private var totalThangText: String {
-        HoaDonFormatting.money(filteredItems.filter { $0.billThang }.reduce(0) { $0 + $1.thanhTien })
-    }
+    private var chiNgay: [ChiTieuHangNgayDto] { filtered.filter { !$0.billThang } }
+    private var billThang: [ChiTieuHangNgayDto] { filtered.filter(\.billThang) }
+    private func sum(_ list: [ChiTieuHangNgayDto]) -> Double { list.reduce(0) { $0 + $1.thanhTien } }
 
     var body: some View {
         NavigationStack {
-            VStack(spacing: 0) {
-                DaySearchBar(
-                    date: $currentDate, searchText: $searchText,
-                    placeholder: "Tìm nguyên liệu, ghi chú...",
-                    trailing: AnyView(AccountButton(isLoggedIn: $isLoggedIn, tint: .white)),
-                    tinted: true
-                ) { Task { await load() } }
-
+            Group {
                 if !hasLoaded {
                     fullScreenLoading()
                 } else {
                     List {
-                        if filteredItems.isEmpty {
-                            Text("Chưa có chi tiêu nào")
-                                .foregroundColor(.textMuted)
-                                .frame(maxWidth: .infinity)
-                                .listRowSeparator(.hidden)
-                        } else {
-                            ForEach(filteredItems) { item in
-                                ChiTieuRowView(item: item, onSelect: { selectedItem = item })
-                                    .listRowInsets(EdgeInsets(top: 8, leading: 12, bottom: 8, trailing: 12))
-                                    .listRowBackground(Color.clear)
-                                    .listRowSeparator(.hidden)
+                        Section { totalHeader }
+                            .listRowInsets(EdgeInsets(top: 14, leading: 16, bottom: 14, trailing: 16))
+
+                        if filtered.isEmpty {
+                            Section {
+                                EmptyStateView(
+                                    symbol: searchText.isEmpty ? "cart" : "magnifyingglass",
+                                    title: searchText.isEmpty ? "Chưa có chi tiêu" : "Không tìm thấy",
+                                    message: searchText.isEmpty ? "Bấm + để thêm khoản chi trong ngày." : nil
+                                )
                             }
                         }
+                        if !chiNgay.isEmpty {
+                            section("Chi ngày", chiNgay)
+                        }
+                        if !billThang.isEmpty {
+                            section("Bill tháng", billThang)
+                        }
                     }
-                    .listStyle(.plain)
-                    .padding(.top, 4)
+                    .listStyle(.insetGrouped)
                     .refreshable { await load() }
                 }
-
-                Divider()
-                HStack(spacing: 12) {
-                    Button { showAdd = true } label: {
-                        Text("➕").font(.system(size: 30))
-                    }
-                    .foregroundColor(.brandPrimary)
-
-                    // "Thêm từ ảnh" — chọn ảnh hoá đơn mua hàng, Gemini đọc + tự gợi ý map nguyên
-                    // liệu, mở form duyệt trước khi lưu thật. Xem ReceiptImportView.swift.
-                    ReceiptImportButton(date: currentDate) { Task { await load() } }
-
-                    VStack(alignment: .trailing, spacing: 2) {
-                        HStack(spacing: 8) {
-                            Text("Ngày: \(totalNgayText)")
-                                .font(.caption2).foregroundColor(.successColor)
-                            Text("Tháng: \(totalThangText)")
-                                .font(.caption2).foregroundColor(.brandPrimary)
-                        }
-                        Text(totalText).font(.headline)
-                    }
-                    .frame(maxWidth: .infinity, alignment: .trailing)
-                }
-                .padding(.horizontal)
-                .padding(.vertical, 8)
             }
-            // Không có navigationTitle (DaySearchBar tự làm header) — xem lý do ẩn hẳn nav bar ở
-            // ThongKeView.swift (cùng vấn đề mảng xanh trống phía trên do nav bar mặc định chừa
-            // chỗ large title).
-            .navigationBarHidden(true)
+            .safeAreaInset(edge: .top, spacing: 0) {
+                DateStepperBar(date: $currentDate) { Task { await load() } }
+            }
+            .searchable(text: $searchText, placement: .navigationBarDrawer(displayMode: .automatic), prompt: "Tìm nguyên liệu, ghi chú")
+            .navigationTitle("Chi tiêu")
+            .staffToolbar(isLoggedIn: $isLoggedIn) {
+                Button { showAdd = true } label: {
+                    Image(systemName: "plus.circle.fill").font(.system(size: 22))
+                }
+                .accessibilityLabel("Thêm chi tiêu")
+            }
         }
         .task { await load() }
-        .sheet(item: $selectedItem) { item in
-            ChiTieuDetailSheet(item: item) {
-                Task { await load() }
-            }
+        .sheet(item: $editingItem) { item in
+            EditExpenseSheet(item: item) { Task { await load() } }
         }
         .sheet(isPresented: $showAdd) {
-            AddExpenseSheet(date: currentDate) {
-                Task { await load() }
+            AddExpenseSheet(date: currentDate) { Task { await load() } }
+        }
+        .confirmationDialog(
+            "Xoá \"\(deletingItem?.ten ?? "")\"?",
+            isPresented: Binding(get: { deletingItem != nil }, set: { if !$0 { deletingItem = nil } }),
+            titleVisibility: .visible,
+            presenting: deletingItem
+        ) { item in
+            Button("Xoá chi tiêu", role: .destructive) { Task { await delete(item) } }
+            Button("Huỷ", role: .cancel) {}
+        } message: { _ in
+            Text("Không thể hoàn tác.")
+        }
+        .alert(errorMessage ?? "", isPresented: Binding(get: { errorMessage != nil }, set: { if !$0 { errorMessage = nil } })) {
+            Button("OK", role: .cancel) {}
+        }
+    }
+
+    private var totalHeader: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Tổng chi").font(.subheadline).foregroundColor(.secondary)
+                MoneyText(value: sum(filtered), font: .system(size: 30, weight: .bold, design: .rounded))
+            }
+            HStack(spacing: 16) {
+                legend("Chi ngày", sum(chiNgay), .successColor)
+                legend("Bill tháng", sum(billThang), .brandPrimary)
+            }
+        }
+    }
+
+    private func legend(_ title: String, _ value: Double, _ color: Color) -> some View {
+        HStack(spacing: 6) {
+            Circle().fill(color).frame(width: 8, height: 8)
+            Text(title).font(.footnote).foregroundColor(.secondary)
+            MoneyText(value: value, font: .footnote.weight(.semibold))
+        }
+    }
+
+    private func section(_ title: String, _ list: [ChiTieuHangNgayDto]) -> some View {
+        Section {
+            ForEach(list) { item in
+                Button { editingItem = item } label: { ChiTieuRow(item: item) }
+                    .swipeActions(edge: .trailing) {
+                        Button(role: .destructive) { deletingItem = item } label: {
+                            Label("Xoá", systemImage: "trash")
+                        }
+                    }
+            }
+        } header: {
+            HStack {
+                Text(title)
+                Spacer()
+                Text(HoaDonFormatting.money(sum(list))).monospacedDigit()
             }
         }
     }
 
     private func load() async {
-        loading = true
         items = await APIClient.shared.getChiTieuByDay(DateNavFormat.queryDate.string(from: currentDate))
-        loading = false
         hasLoaded = true
     }
-}
 
-private struct ChiTieuRowView: View {
-    let item: ChiTieuHangNgayDto
-    var onSelect: (() -> Void)? = nil
-
-    private var borderColor: Color {
-        item.billThang ? .brandPrimary : .successColor
-    }
-
-    var body: some View {
-        HStack(spacing: 10) {
-            Rectangle().fill(borderColor).frame(width: 4)
-
-            VStack(alignment: .leading, spacing: 4) {
-                HStack(spacing: 6) {
-                    Text(item.ten).font(.subheadline.bold())
-                    if let ghiChu = item.ghiChu, !ghiChu.isEmpty {
-                        Text(ghiChu).font(.footnote).foregroundColor(.textMuted).lineLimit(1)
-                    }
-                }
-                Text("\(HoaDonFormatting.money(item.donGia)) × \(item.soLuong.formatted())")
-                    .font(.footnote).foregroundColor(.textMuted)
-            }
-            Spacer()
-            VStack(alignment: .trailing, spacing: 4) {
-                Text(HoaDonFormatting.money(item.thanhTien)).font(.subheadline.bold())
-                Text(item.billThang ? "#tháng" : "#ngày")
-                    .font(.caption2.bold())
-                    .padding(.horizontal, 8).padding(.vertical, 2)
-                    .background(borderColor.opacity(0.15))
-                    .foregroundColor(borderColor)
-                    .clipShape(Capsule())
-            }
-        }
-        .padding(12)
-        .background(borderColor.pastelBackground())
-        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-        .shadow(color: .black.opacity(0.06), radius: 6, x: 0, y: 2)
-        .contentShape(Rectangle())
-        .onTapGesture { onSelect?() }
-    }
-}
-
-/// Mở khi bấm vào 1 dòng chi tiêu — khớp phong cách HoaDonDetailView: xem thông tin trước, Sửa/Xoá
-/// là 2 nút ActionButtonView riêng bên dưới (không còn swipeActions xoá thẳng không xác nhận), Xoá
-/// bắt buộc qua confirmationDialog trước khi gọi API (khớp nguyên tắc "mọi thao tác đụng tiền/dữ
-/// liệu thật đều phải qua bước Xác nhận" — xem HoaDonDetailView.PendingAction).
-private struct ChiTieuDetailSheet: View {
-    let item: ChiTieuHangNgayDto
-    let onChanged: () -> Void
-
-    @Environment(\.dismiss) private var dismiss
-    @State private var showEditForm = false
-    @State private var showDeleteConfirm = false
-    @State private var deleting = false
-    @State private var errorMessage: String?
-
-    var body: some View {
-        NavigationStack {
-            VStack(alignment: .leading, spacing: 20) {
-                VStack(alignment: .leading, spacing: 6) {
-                    Text(item.ten).font(.title3.bold())
-                    if let ghiChu = item.ghiChu, !ghiChu.isEmpty {
-                        Text(ghiChu).font(.subheadline).foregroundColor(.textMuted)
-                    }
-                }
-
-                VStack(spacing: 10) {
-                    infoRow("Số lượng", item.soLuong.formatted())
-                    infoRow("Đơn giá", HoaDonFormatting.money(item.donGia))
-                    infoRow("Thành tiền", HoaDonFormatting.money(item.thanhTien))
-                    infoRow("Loại", item.billThang ? "Bill tháng" : "Chi ngày")
-                    if let tk = item.tenTaiKhoan, !tk.isEmpty {
-                        infoRow("Người thêm", tk)
-                    }
-                }
-
-                if let errorMessage {
-                    Text(errorMessage).font(.footnote).foregroundColor(.dangerColor)
-                }
-
-                Spacer()
-
-                HStack(spacing: 12) {
-                    ActionButtonView(icon: "✏️", code: nil, caption: "Sửa", color: .warningColor) {
-                        showEditForm = true
-                    }
-                    ActionButtonView(icon: "🗑️", code: nil, caption: "Xoá", color: .dangerColor) {
-                        showDeleteConfirm = true
-                    }
-                }
-            }
-            .padding()
-            .navigationTitle("Chi tiết chi tiêu")
-            .navigationBarTitleDisplayMode(.inline)
-            .brandToolbarBackground()
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Đóng") { dismiss() }
-                }
-            }
-            .overlay { if deleting { ProgressView() } }
-        }
-        .sheet(isPresented: $showEditForm) {
-            EditExpenseSheet(item: item) {
-                onChanged()
-                dismiss()
-            }
-        }
-        .confirmationDialog("Xoá chi tiêu", isPresented: $showDeleteConfirm, titleVisibility: .visible) {
-            Button("Xoá", role: .destructive) { Task { await delete() } }
-            Button("Huỷ", role: .cancel) {}
-        } message: {
-            Text("Xoá \"\(item.ten)\"? Không thể hoàn tác.")
-        }
-    }
-
-    private func infoRow(_ label: String, _ value: String) -> some View {
-        HStack {
-            Text(label).foregroundColor(.textMuted)
-            Spacer()
-            Text(value).multilineTextAlignment(.trailing)
-        }
-        .font(.subheadline)
-    }
-
-    private func delete() async {
-        deleting = true
-        errorMessage = nil
+    private func delete(_ item: ChiTieuHangNgayDto) async {
         let result = await APIClient.shared.deleteChiTieu(id: item.id)
-        deleting = false
         if result.success {
-            onChanged()
-            dismiss()
+            items.removeAll { $0.id == item.id }
         } else {
             errorMessage = result.message ?? "Không xoá được."
         }
     }
 }
 
-/// Sửa 1 dòng chi tiêu — số lượng/đơn giá/ghi chú/loại đều sửa được, khớp bố cục "Thêm chi tiêu"
-/// (AddExpenseSheet) thay vì trước đây chỉ cho đổi Ghi chú (quá hẹp so với form Thêm). Tên nguyên
-/// liệu giữ cố định — đổi nguyên liệu thực chất là 1 dòng chi tiêu khác, không phải "sửa".
+private struct ChiTieuRow: View {
+    let item: ChiTieuHangNgayDto
+
+    var body: some View {
+        HStack(spacing: 12) {
+            VStack(alignment: .leading, spacing: 3) {
+                Text(item.ten).font(.body).foregroundColor(.primary)
+                Text(subtitle).font(.footnote).foregroundColor(.secondary).lineLimit(1)
+            }
+            Spacer()
+            MoneyText(value: item.thanhTien, font: .body.weight(.semibold))
+        }
+        .padding(.vertical, 2)
+    }
+
+    private var subtitle: String {
+        var s = "\(item.soLuong.formatted()) × \(HoaDonFormatting.money(item.donGia))"
+        if let ghiChu = item.ghiChu, !ghiChu.isEmpty { s += " · \(ghiChu)" }
+        return s
+    }
+}
+
+/// Số lượng (Stepper) + Thành tiền (nhập) + Đơn giá (tự tính = Thành tiền / Số lượng). Nhân viên hay gộp
+/// nhiều lần mua thành 1 lần trả nên biết chắc tổng tiền hơn đơn giá. Dùng chung cho form Thêm và Sửa.
+private struct QuantityPriceFields: View {
+    @Binding var soLuong: Double
+    @Binding var thanhTien: Double
+
+    private var donGia: Double { soLuong > 0 ? thanhTien / soLuong : 0 }
+
+    var body: some View {
+        Stepper(value: $soLuong, in: 1...99_999, step: 1) {
+            HStack {
+                Text("Số lượng")
+                Spacer()
+                Text(soLuong.formatted()).monospacedDigit().foregroundColor(.secondary)
+            }
+        }
+        HStack {
+            Text("Thành tiền")
+            TextField("0", value: $thanhTien, format: .number)
+                .keyboardType(.numberPad)
+                .multilineTextAlignment(.trailing)
+                .font(.body.weight(.semibold))
+            Text("đ").foregroundColor(.secondary)
+        }
+        LabeledContent("Đơn giá") {
+            MoneyText(value: donGia, color: .secondary)
+        }
+    }
+}
+
+/// Sửa 1 dòng chi tiêu — số lượng/thành tiền/ghi chú/loại đều sửa được; tên nguyên liệu giữ cố định
+/// (đổi nguyên liệu thực chất là 1 khoản chi khác). Có nút Xoá ở cuối form.
 private struct EditExpenseSheet: View {
     let item: ChiTieuHangNgayDto
-    let onSaved: () -> Void
+    let onChanged: () -> Void
 
     @Environment(\.dismiss) private var dismiss
     @State private var soLuong: Double
@@ -266,14 +205,14 @@ private struct EditExpenseSheet: View {
     @State private var ghiChu: String
     @State private var billThang: Bool
     @State private var saving = false
+    @State private var showDeleteConfirm = false
     @State private var errorMessage: String?
 
-    /// Tự tính ngược từ Thành tiền/Số lượng — xem QuantityPriceRow.
     private var donGia: Double { soLuong > 0 ? thanhTien / soLuong : 0 }
 
-    init(item: ChiTieuHangNgayDto, onSaved: @escaping () -> Void) {
+    init(item: ChiTieuHangNgayDto, onChanged: @escaping () -> Void) {
         self.item = item
-        self.onSaved = onSaved
+        self.onChanged = onChanged
         _soLuong = State(initialValue: item.soLuong)
         _thanhTien = State(initialValue: item.thanhTien)
         _ghiChu = State(initialValue: item.ghiChu ?? "")
@@ -283,46 +222,48 @@ private struct EditExpenseSheet: View {
     var body: some View {
         NavigationStack {
             Form {
-                Section("Số lượng & thành tiền") {
-                    QuantityPriceRow(soLuong: $soLuong, thanhTien: $thanhTien, donGia: donGia)
+                Section {
+                    QuantityPriceFields(soLuong: $soLuong, thanhTien: $thanhTien)
+                } header: {
+                    Text(item.ten)
                 }
 
-                Section(item.ten) {
+                Section {
                     TextField("Ghi chú", text: $ghiChu)
                     Toggle("Bill tháng", isOn: $billThang)
+                } footer: {
+                    if let tk = item.tenTaiKhoan, !tk.isEmpty { Text("Người thêm: \(tk)") }
                 }
 
                 if let errorMessage {
-                    Text(errorMessage).foregroundColor(.dangerColor)
+                    Section { Text(errorMessage).foregroundColor(.dangerColor) }
+                }
+
+                Section {
+                    Button(role: .destructive) { showDeleteConfirm = true } label: {
+                        Text("Xoá chi tiêu").frame(maxWidth: .infinity)
+                    }
                 }
             }
             .navigationTitle("Sửa chi tiêu")
             .navigationBarTitleDisplayMode(.inline)
-            .brandToolbarBackground()
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Huỷ") { dismiss() }
+                ToolbarItem(placement: .cancellationAction) { Button("Huỷ") { dismiss() } }
+                ToolbarItem(placement: .confirmationAction) {
+                    if saving { ProgressView() } else {
+                        Button("Lưu") { Task { await save() } }
+                            .fontWeight(.semibold)
+                            .disabled(thanhTien <= 0)
+                    }
                 }
             }
-            .safeAreaInset(edge: .bottom) {
-                Button {
-                    Task { await save() }
-                } label: {
-                    Text(saving ? "Đang lưu..." : "Lưu")
-                        .fontWeight(.bold)
-                        .frame(maxWidth: .infinity)
-                }
-                .buttonStyle(.borderedProminent)
-                .tint(.brandPrimary)
-                .controlSize(.large)
-                .disabled(thanhTien <= 0 || saving)
-                .padding(.horizontal, 16)
-                .padding(.top, 10)
-                .padding(.bottom, 8)
-                // Color(.systemBackground) thay vì .background(.bar) — xem HoaDonEditFormView.
-                .background(Color(.systemBackground))
-                .overlay(Divider(), alignment: .top)
-            }
+            .interactiveDismissDisabled(saving)
+        }
+        .confirmationDialog("Xoá \"\(item.ten)\"?", isPresented: $showDeleteConfirm, titleVisibility: .visible) {
+            Button("Xoá chi tiêu", role: .destructive) { Task { await delete() } }
+            Button("Huỷ", role: .cancel) {}
+        } message: {
+            Text("Không thể hoàn tác.")
         }
     }
 
@@ -339,65 +280,24 @@ private struct EditExpenseSheet: View {
         let result = await APIClient.shared.updateChiTieu(id: item.id, body)
         saving = false
         if result.success {
-            onSaved()
+            onChanged()
             dismiss()
         } else {
             errorMessage = result.message ?? "Không lưu được."
         }
     }
-}
 
-/// Hàng Số lượng/Thành tiền/Đơn giá — khớp bố cục `configSection` bên HoaDonCreateFormView.ProductPickerSheet
-/// (nút tròn -/+ cho số lượng) nhưng đảo vai trò Đơn giá↔Thành tiền: nhân viên hay nhập gộp nhiều lần
-/// mua thành 1 lần thanh toán, biết chắc tổng tiền hơn đơn giá từng đơn vị — nên chỉ nhập Số lượng +
-/// Thành tiền (đều bắt buộc), Đơn giá tự tính ngược = Thành tiền/Số lượng, hiển thị read-only. Dùng
-/// chung cho cả AddExpenseSheet lẫn EditExpenseSheet để 2 form luôn khớp nhau.
-private struct QuantityPriceRow: View {
-    @Binding var soLuong: Double
-    @Binding var thanhTien: Double
-    var donGia: Double
-
-    var body: some View {
-        GeometryReader { geo in
-            let spacing: CGFloat = 8
-            let unit = (geo.size.width - spacing * 2) / 3.3
-            HStack(spacing: spacing) {
-                HStack(spacing: 4) {
-                    Button {
-                        if soLuong > 1 { soLuong -= 1 }
-                    } label: {
-                        Text("➖").font(.system(size: 22))
-                    }
-                    .disabled(soLuong <= 1)
-                    Text(soLuong.formatted()).font(.subheadline.bold()).frame(minWidth: 16)
-                    Button {
-                        soLuong += 1
-                    } label: {
-                        Text("➕").font(.system(size: 22))
-                    }
-                }
-                .buttonStyle(.plain)
-                .foregroundColor(.brandPrimary)
-                .frame(width: unit, alignment: .leading)
-
-                TextField("0", value: $thanhTien, format: .number)
-                    .keyboardType(.numberPad)
-                    .multilineTextAlignment(.trailing)
-                    .textFieldStyle(.roundedBorder)
-                    .frame(width: unit * 1.3, alignment: .center)
-
-                VStack(alignment: .trailing, spacing: 1) {
-                    Text(HoaDonFormatting.money(donGia))
-                        .font(.subheadline.bold())
-                        .foregroundColor(.textMuted)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.7)
-                    Text("đơn giá").font(.caption2).foregroundColor(.textMuted)
-                }
-                .frame(width: unit, alignment: .trailing)
-            }
+    private func delete() async {
+        saving = true
+        errorMessage = nil
+        let result = await APIClient.shared.deleteChiTieu(id: item.id)
+        saving = false
+        if result.success {
+            onChanged()
+            dismiss()
+        } else {
+            errorMessage = result.message ?? "Không xoá được."
         }
-        .frame(height: 34)
     }
 }
 
@@ -417,44 +317,52 @@ struct AddExpenseSheet: View {
     @State private var errorMessage: String?
     @State private var addingNguyenLieu = false
     @State private var warningAlertText: String?
+    @FocusState private var searchFocused: Bool
 
-    /// Rỗng khi chưa gõ gì — danh sách nguyên liệu quá dài để liệt kê hết như dropdown, phải gõ
-    /// tìm mới hiện kết quả (khớp cách sửa "Thêm món" bên HoaDonCreateFormView.ProductPickerSheet).
+    /// Rỗng khi chưa gõ gì — danh sách nguyên liệu quá dài để liệt kê hết, phải gõ tìm mới hiện.
     private var filteredList: [NguyenLieuDto] {
         guard !searchText.isEmpty else { return [] }
         return nguyenLieuList.filter { !$0.ngungSuDung && $0.ten.matchesSearch(searchText) }
     }
 
-    /// Tự tính ngược từ Thành tiền/Số lượng — xem QuantityPriceRow.
     private var donGia: Double { soLuong > 0 ? thanhTien / soLuong : 0 }
 
     var body: some View {
         NavigationStack {
             Form {
                 Section("Nguyên liệu") {
-                    TextField("Tìm nguyên liệu...", text: $searchText)
                     if let selected {
                         HStack {
-                            Text(selected.ten).bold()
+                            Image(systemName: "checkmark.circle.fill").foregroundColor(.successColor)
+                            Text(selected.ten).fontWeight(.semibold)
                             Spacer()
-                            Button("Đổi") { self.selected = nil }.font(.footnote)
+                            Button("Đổi") { self.selected = nil; searchFocused = true }
+                                .buttonStyle(.borderless)
                         }
                     } else {
+                        HStack {
+                            Image(systemName: "magnifyingglass").foregroundColor(.secondary)
+                            TextField("Tìm nguyên liệu", text: $searchText)
+                                .focused($searchFocused)
+                                .autocorrectionDisabled()
+                        }
                         ForEach(filteredList.prefix(30)) { nl in
                             Button {
                                 selected = nl
                                 searchText = ""
-                                // Gợi ý Thành tiền = Số lượng hiện tại × giá nhập gần nhất — chỉ là
-                                // điểm khởi đầu, sửa lại đúng tổng tiền thật đã trả (có thể gộp
-                                // nhiều lần mua).
+                                // Gợi ý Thành tiền = Số lượng × giá nhập gần nhất — chỉ là điểm khởi đầu.
                                 if nl.giaNhap > 0 { thanhTien = soLuong * nl.giaNhap }
                             } label: {
-                                Text(nl.ten)
+                                HStack {
+                                    Text(nl.ten).foregroundColor(.primary)
+                                    Spacer()
+                                    if nl.giaNhap > 0 {
+                                        Text(HoaDonFormatting.money(nl.giaNhap)).font(.footnote).foregroundColor(.secondary)
+                                    }
+                                }
                             }
                         }
-
-                        // Gõ tên không khớp nguyên liệu nào có sẵn (VD "Dao Thái Lan" lần đầu mua) —
-                        // cho thêm mới ngay tại đây thay vì phải mở Desktop/web quản lý danh mục.
+                        // Gõ tên không khớp nguyên liệu nào — cho thêm mới ngay tại đây.
                         if !searchText.isEmpty && filteredList.isEmpty {
                             Button {
                                 Task { await addNewNguyenLieu() }
@@ -462,7 +370,7 @@ struct AddExpenseSheet: View {
                                 if addingNguyenLieu {
                                     ProgressView()
                                 } else {
-                                    EmojiLabel("Thêm nguyên liệu mới \"\(searchText)\"", "➕")
+                                    Label("Thêm nguyên liệu \"\(searchText)\"", systemImage: "plus.circle.fill")
                                 }
                             }
                             .disabled(addingNguyenLieu)
@@ -470,10 +378,8 @@ struct AddExpenseSheet: View {
                     }
                 }
 
-                // Khớp hàng Số lượng/Đơn giá/Thành tiền bên "Thêm món"
-                // (HoaDonCreateFormView.ProductPickerSheet.configSection) qua QuantityPriceRow dùng chung.
                 Section("Số lượng & thành tiền") {
-                    QuantityPriceRow(soLuong: $soLuong, thanhTien: $thanhTien, donGia: donGia)
+                    QuantityPriceFields(soLuong: $soLuong, thanhTien: $thanhTien)
                 }
 
                 Section {
@@ -482,42 +388,29 @@ struct AddExpenseSheet: View {
                 }
 
                 if let errorMessage {
-                    Text(errorMessage).foregroundColor(.dangerColor)
+                    Section { Text(errorMessage).foregroundColor(.dangerColor) }
                 }
             }
             .navigationTitle("Thêm chi tiêu")
             .navigationBarTitleDisplayMode(.inline)
-            .brandToolbarBackground()
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Huỷ") { dismiss() }
+                ToolbarItem(placement: .cancellationAction) { Button("Huỷ") { dismiss() } }
+                ToolbarItem(placement: .confirmationAction) {
+                    if saving { ProgressView() } else {
+                        Button("Lưu") { Task { await save() } }
+                            .fontWeight(.semibold)
+                            .disabled(selected == nil || thanhTien <= 0)
+                    }
                 }
             }
-            .safeAreaInset(edge: .bottom) {
-                Button {
-                    Task { await save() }
-                } label: {
-                    Text(saving ? "Đang lưu..." : "Lưu")
-                        .fontWeight(.bold)
-                        .frame(maxWidth: .infinity)
-                }
-                .buttonStyle(.borderedProminent)
-                .tint(.brandPrimary)
-                .controlSize(.large)
-                .disabled(selected == nil || thanhTien <= 0 || saving)
-                .padding(.horizontal, 16)
-                .padding(.top, 10)
-                .padding(.bottom, 8)
-                // Color(.systemBackground) thay vì .background(.bar) — xem HoaDonEditFormView.
-                .background(Color(.systemBackground))
-                .overlay(Divider(), alignment: .top)
-            }
+            .interactiveDismissDisabled(saving)
         }
-        .task { nguyenLieuList = await APIClient.shared.getNguyenLieu() }
-        // Backend đã lưu thành công nhưng phát hiện giá lệch lớn so với lần mua gần nhất (xem
-        // CheckGiaBatThuongAsync/ChiTieuHangNgayService) — chỉ cảnh báo, không chặn, đóng sheet
-        // sau khi người dùng bấm xác nhận đã đọc.
-        .alert("⚠️ Giá bất thường", isPresented: Binding(
+        .task {
+            nguyenLieuList = await APIClient.shared.getNguyenLieu()
+            searchFocused = true
+        }
+        // Backend đã lưu nhưng giá lệch lớn so với lần mua gần nhất — chỉ cảnh báo, không chặn.
+        .alert("Giá bất thường", isPresented: Binding(
             get: { warningAlertText != nil },
             set: { if !$0 { warningAlertText = nil } }
         )) {

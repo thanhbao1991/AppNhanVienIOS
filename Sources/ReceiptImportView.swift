@@ -226,7 +226,6 @@ private struct ReceiptReviewSheet: View {
             }
             .navigationTitle("Duyệt hoá đơn")
             .navigationBarTitleDisplayMode(.inline)
-            .brandToolbarBackground()
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Huỷ") { dismiss() }.disabled(saving)

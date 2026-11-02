@@ -271,6 +271,8 @@ struct ShipperHoaDonDto: Decodable, Identifiable {
     let thanhTien: Double
     let ngayNo: String?
     let ngayShip: String?
+    /// "Ship" | "AppDatHang" — nil ở backend cũ chưa trả field.
+    let phanLoai: String?
 
     var tenHienThi: String { (tenKhachHangText?.isEmpty == false) ? tenKhachHangText! : "Khách lẻ" }
     var tongNo: Double { tongNoKhachHang ?? 0 }

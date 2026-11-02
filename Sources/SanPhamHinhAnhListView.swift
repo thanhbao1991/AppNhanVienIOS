@@ -1,8 +1,7 @@
 import SwiftUI
 
-/// Màn "Ảnh menu" — cho nhân viên đổi/thêm ảnh món ăn cho AppDatHangIOS (app khách đặt hàng), vì
-/// menu chỉ tự khớp sẵn 92/233 món (tên trùng với ảnh có sẵn ở AppShippingBackend lúc seed), phần
-/// còn lại + món đổi ảnh về sau phải cập nhật tay qua đây. Bản nhân viên: tab riêng "Ảnh menu".
+/// Màn "Ảnh menu" — nhân viên đổi/thêm ảnh món cho AppDatHangIOS (app khách đặt hàng). Món chia theo
+/// nhóm, ô tìm kiếm chuẩn iOS, mỗi dòng có nút máy ảnh mở menu Chọn ảnh / Chụp ảnh.
 struct SanPhamHinhAnhListView: View {
     @Binding var isLoggedIn: Bool
     @State private var sanPhams: [SanPhamDto] = []
@@ -11,39 +10,52 @@ struct SanPhamHinhAnhListView: View {
     @State private var uploadingId: String?
     @State private var errorMessage: String?
 
-    private var filtered: [SanPhamDto] {
-        sanPhams
-            .filter { $0.ten.matchesSearch(query) }
-            .sorted { $0.ten < $1.ten }
+    private var groups: [(nhom: String, items: [SanPhamDto])] {
+        let filtered = sanPhams.filter { $0.ten.matchesSearch(query) }
+        let dict = Dictionary(grouping: filtered) { $0.tenNhomSanPham?.isEmpty == false ? $0.tenNhomSanPham! : "Khác" }
+        return dict
+            .map { (nhom: $0.key, items: $0.value.sorted { ($0.thuTu, $0.ten) < ($1.thuTu, $1.ten) }) }
+            .sorted { ($0.items.first?.thuTu ?? 0, $0.nhom) < ($1.items.first?.thuTu ?? 0, $1.nhom) }
     }
+
+    private var soChuaCoAnh: Int { sanPhams.filter { $0.hinhAnh == nil }.count }
 
     var body: some View {
         NavigationStack {
-        VStack(spacing: 0) {
-            SearchBar(text: $query, placeholder: "Tìm món...")
-
-            if loading {
-                fullScreenLoading()
-            } else {
-                List {
-                    ForEach(filtered) { sp in
-                        SanPhamHinhAnhRow(
-                            sanPham: sp,
-                            uploading: uploadingId == sp.id,
-                            onPicked: { data, mime in Task { await upload(id: sp.id, data: data, mime: mime) } }
-                        )
+            Group {
+                if loading {
+                    fullScreenLoading()
+                } else {
+                    List {
+                        if query.isEmpty && soChuaCoAnh > 0 {
+                            Section {
+                                Label("\(soChuaCoAnh) món chưa có ảnh", systemImage: "photo.badge.plus")
+                                    .font(.subheadline)
+                                    .foregroundColor(.secondary)
+                            }
+                        }
+                        if groups.isEmpty {
+                            Section { EmptyStateView(symbol: "magnifyingglass", title: "Không tìm thấy món") }
+                        }
+                        ForEach(groups, id: \.nhom) { group in
+                            Section(group.nhom) {
+                                ForEach(group.items) { sp in
+                                    SanPhamHinhAnhRow(
+                                        sanPham: sp,
+                                        uploading: uploadingId == sp.id,
+                                        onPicked: { data, mime in Task { await upload(id: sp.id, data: data, mime: mime) } }
+                                    )
+                                }
+                            }
+                        }
                     }
+                    .listStyle(.insetGrouped)
+                    .refreshable { await load() }
                 }
-                .listStyle(.plain)
-                .padding(.top, 4)
             }
-        }
-        .navigationTitle("Ảnh menu")
-        .navigationBarTitleDisplayMode(.inline)
-        .brandToolbarBackground()
-        .toolbar {
-            ToolbarItem(placement: .navigationBarTrailing) { AccountButton(isLoggedIn: $isLoggedIn, tint: .white) }
-        }
+            .searchable(text: $query, placement: .navigationBarDrawer(displayMode: .always), prompt: "Tìm món")
+            .navigationTitle("Ảnh menu")
+            .staffToolbar(isLoggedIn: $isLoggedIn)
         }
         .task { await load() }
         .alert("Đổi ảnh thất bại", isPresented: Binding(
@@ -57,7 +69,7 @@ struct SanPhamHinhAnhListView: View {
     }
 
     private func load() async {
-        loading = true
+        if sanPhams.isEmpty { loading = true }
         sanPhams = await APIClient.shared.getSanPhamList()
         loading = false
     }
@@ -70,7 +82,7 @@ struct SanPhamHinhAnhListView: View {
             if let idx = sanPhams.firstIndex(where: { $0.id == id }) {
                 let old = sanPhams[idx]
                 // Backend giữ nguyên tên file (id.ext) mỗi lần đổi ảnh nên URL không đổi —
-                // gắn query cache-bust để AsyncImage tải lại ngay, không phải thoát vào lại màn hình.
+                // gắn query cache-bust để AsyncImage tải lại ngay.
                 let bustedUrl = url + "?v=\(Int(Date().timeIntervalSince1970))"
                 sanPhams[idx] = SanPhamDto(
                     id: old.id, ten: old.ten, ngungBan: old.ngungBan, tenNhomSanPham: old.tenNhomSanPham,
@@ -93,34 +105,29 @@ private struct SanPhamHinhAnhRow: View {
     var body: some View {
         HStack(spacing: 12) {
             thumbnail
-            Text(sanPham.ten)
-                .font(.subheadline)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(sanPham.ten)
+                if sanPham.hinhAnh == nil {
+                    Text("Chưa có ảnh").font(.footnote).foregroundColor(.orange)
+                }
+            }
             Spacer()
             if uploading {
-                ProgressView().frame(width: 28, height: 28)
+                ProgressView().frame(width: 36, height: 36)
             } else {
-                // .borderless để 2 nút trong cùng dòng List nhận tap riêng, không bị gộp cả dòng.
-                Button {
-                    showPicker = true
+                Menu {
+                    Button { showPicker = true } label: { Label("Chọn từ thư viện", systemImage: "photo.on.rectangle") }
+                    Button { showCamera = true } label: { Label("Chụp ảnh", systemImage: "camera") }
                 } label: {
-                    Text("🖼️")
-                        .font(.system(size: 20))
+                    Image(systemName: sanPham.hinhAnh == nil ? "plus.circle.fill" : "camera.circle.fill")
+                        .font(.system(size: 28))
+                        .symbolRenderingMode(.hierarchical)
                         .frame(width: 36, height: 36)
                 }
-                .buttonStyle(.borderless)
-                Button {
-                    showCamera = true
-                } label: {
-                    Text("📷")
-                        .font(.system(size: 20))
-                        .frame(width: 36, height: 36)
-                }
-                .buttonStyle(.borderless)
+                .accessibilityLabel("Đổi ảnh \(sanPham.ten)")
             }
         }
-        .padding(.vertical, 4)
-        // UIImagePickerController(sourceType: .photoLibrary) — picker mặc định của hệ thống (mở
-        // Recents), không tự giới hạn vào album Yêu thích như FavoritesImagePicker cũ.
+        .padding(.vertical, 2)
         .fullScreenCover(isPresented: $showPicker) {
             LibraryPicker { image in
                 showPicker = false
@@ -141,32 +148,31 @@ private struct SanPhamHinhAnhRow: View {
 
     @ViewBuilder
     private var thumbnail: some View {
+        let shape = RoundedRectangle(cornerRadius: 10, style: .continuous)
         if let hinhAnh = sanPham.hinhAnh, let url = URL(string: hinhAnh) {
             AsyncImage(url: url) { phase in
                 switch phase {
                 case .success(let image):
                     image.resizable().aspectRatio(contentMode: .fill)
                 default:
-                    Color.textMuted.opacity(0.12)
+                    Color(.tertiarySystemFill)
                 }
             }
-            .frame(width: 48, height: 48)
-            .clipShape(RoundedRectangle(cornerRadius: 8))
+            .frame(width: 52, height: 52)
+            .clipShape(shape)
         } else {
-            RoundedRectangle(cornerRadius: 8)
-                .fill(Color.textMuted.opacity(0.12))
-                .frame(width: 48, height: 48)
+            shape
+                .fill(Color(.tertiarySystemFill))
+                .frame(width: 52, height: 52)
                 .overlay(
-                    Text(sanPham.ten.trimmingCharacters(in: .whitespaces).prefix(1).uppercased())
-                        .font(.headline)
-                        .foregroundColor(.brandPrimary)
+                    Image(systemName: "photo")
+                        .foregroundColor(.secondary)
                 )
         }
     }
 }
 
-/// Bọc UIImagePickerController(sourceType: .photoLibrary) — chính là picker ảnh mặc định của hệ
-/// thống iOS (mở Recents, không giới hạn album Yêu thích).
+/// Bọc UIImagePickerController(sourceType: .photoLibrary) — picker ảnh mặc định của hệ thống.
 struct LibraryPicker: UIViewControllerRepresentable {
     let onPicked: (UIImage?) -> Void
 
@@ -196,9 +202,7 @@ struct LibraryPicker: UIViewControllerRepresentable {
 }
 
 extension UIImage {
-    /// Center-crop về tỉ lệ 3:4 rồi resize đúng 200x267 — khớp hệt kích thước 92 ảnh seed ban đầu
-    /// (từ AppShippingBackend). Cả 2 nơi hiển thị (ô 48x48, 64x64) đều crop-fit sẵn nên không cần
-    /// độ phân giải cao hơn — giữ file nhẹ như ảnh seed thay vì để nguyên full-res từ camera.
+    /// Center-crop về tỉ lệ 3:4 rồi resize đúng 200x267 — khớp kích thước ảnh seed ban đầu.
     func resizedForMenuUpload() -> UIImage {
         let targetSize = CGSize(width: 200, height: 267)
         let targetRatio = targetSize.width / targetSize.height
@@ -216,4 +220,3 @@ extension UIImage {
         return renderer.image { _ in draw(in: CGRect(origin: origin, size: drawSize)) }
     }
 }
-

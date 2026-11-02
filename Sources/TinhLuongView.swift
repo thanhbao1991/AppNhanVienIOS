@@ -1,77 +1,50 @@
 import Charts
 import SwiftUI
 
-/// Tính lương Nhã (tab riêng của app nhân viên) — không lưu gì lên server, chỉ đọc doanh thu đơn ship/
-/// chi xăng/chi ứng của shipper trong 1 tháng (GET /api/ThongKe/luong-shipper-thang), phần tỉ lệ lợi
-/// nhuận và lương hiện tại là input tại chỗ để thử nhiều kịch bản.
-/// 2 shipper tính KHÁC công thức hẳn nhau (không phải cùng 1 công thức đổi tham số):
-///   - Khánh: doanhThuShip * tỉLệ - (lươngHiệnTại + chiXăng)  — Khánh ứng trước lương/tỉ lệ, đối
-///     soát bằng doanh thu ship trừ lại phần đã ứng.
-///   - Nhã:   lươngHiệnTại - (chiỨng + chiXăng)               — không liên quan doanh thu ship, không
-///     có tỉ lệ lợi nhuận, chỉ trừ khoản đã ứng + xăng khỏi lương cố định.
-/// Dùng chung 1 view cho cả "Tính lương Khánh"/"Tính lương Nhã", chỉ khác `shipperTen` truyền vào.
+/// Tính lương Nhã — không lưu gì lên server, chỉ đọc chi ứng của Nhã trong tháng
+/// (GET /api/ThongKe/luong-shipper-thang). Lương hiện tại là ô nhập tại chỗ để thử nhiều kịch bản.
+/// Công thức: Còn nhận = Lương hiện tại − Ứng.
 struct TinhLuongView: View {
     @Binding var isLoggedIn: Bool
-    /// Bản nhân viên chỉ tính lương Nhã (công thức: lương hiện tại − ứng).
-    let shipperTen = "Nhã"
-
-    private var isNha: Bool { shipperTen == "Nhã" }
+    private let shipperTen = "Nhã"
 
     @State private var currentDate = Date()
     @State private var luong: LuongShipperDto?
     @State private var chiTieuMonthItems: [ChiTieuHangNgayDto] = []
     @State private var hasLoaded = false
-    @State private var tiLeText = "40"
     @State private var luongHienTaiText = Self.formatThousands("10000000")
-    @State private var selectedDetail: LuongDetailKind?
-    /// Dữ liệu thô 6 tháng gần đây (kết thúc ở currentDate) — giữ raw luong thay vì tính sẵn ketQua
-    /// để biểu đồ tự cập nhật theo tiLe/luongHienTai đang gõ, giống cách ketQua (tháng hiện tại) đã
-    /// recompute live mỗi lần input đổi.
+    @State private var showUngDetail = false
+    /// Dữ liệu thô 6 tháng gần đây (kết thúc ở currentDate) — giữ raw để biểu đồ tự cập nhật theo
+    /// lương hiện tại đang gõ.
     @State private var luong6ThangRaw: [(thang: Int, nam: Int, luong: LuongShipperDto)] = []
+    @FocusState private var luongFocused: Bool
 
-    /// Cùng 3 NguyenLieuId cố định như backend (ThongKeService.XangNguyenLieuId/UngNguyenLieuId) — dò
-    /// 1 lần qua SSH ngày 2026-09-09. KHÔNG lọc theo Ten (chữ tự do, đã phát hiện 2 dòng "Xăng (Khánh)"/
-    /// "Xăng (KHÁNH)" cùng NguyenLieuId nhưng khác hoa/thường làm lệch số giữa 2 nơi hiển thị).
-    private static let xangNguyenLieuId: [String: String] = [
-        "Khánh": "8602845A-8DD3-4799-ADFD-C25529D02170",
-        "Nhã": "C9E6D37B-2344-4D54-B9E8-40E303441B0A",
-    ]
-    private static let ungNguyenLieuId: [String: String] = [
-        "Nhã": "7995B334-44D1-4768-89C7-280E6B0413AE",
-    ]
+    /// NguyenLieuId cố định "Ứng (Nhã)" như backend (ThongKeService.UngNguyenLieuId) — KHÔNG lọc theo Ten.
+    private static let ungNguyenLieuId = "7995B334-44D1-4768-89C7-280E6B0413AE"
 
-    private func items(nguyenLieuId: String?) -> [ChiTieuHangNgayDto] {
-        guard let nguyenLieuId else { return [] }
-        return chiTieuMonthItems.filter { $0.nguyenLieuId.caseInsensitiveCompare(nguyenLieuId) == .orderedSame }
+    private var ungItems: [ChiTieuHangNgayDto] {
+        chiTieuMonthItems.filter { $0.nguyenLieuId.caseInsensitiveCompare(Self.ungNguyenLieuId) == .orderedSame }
     }
 
-    private var tiLe: Double { (Double(tiLeText) ?? 0) / 100 }
     private var luongHienTai: Double { Double(luongHienTaiText.filter(\.isNumber)) ?? 0 }
 
-    /// Gõ tới đâu format dấu chấm ngăn cách tới đó (kiểu "10.000.000") — chỉ giữ lại chữ số rồi
-    /// nhóm lại bằng chính moneyFormatter đang dùng chung toàn app, không tạo formatter riêng.
+    /// Gõ tới đâu format dấu chấm ngăn cách tới đó (kiểu "10.000.000").
     private static func formatThousands(_ raw: String) -> String {
         let digits = raw.filter(\.isNumber)
         guard let value = Int(digits) else { return "" }
         return HoaDonFormatting.moneyFormatter.string(from: NSNumber(value: value)) ?? digits
     }
 
-    private func tinhKetQua(_ luong: LuongShipperDto) -> Double {
-        if isNha { return luongHienTai - luong.chiUng }
-        return luong.doanhThuShip * tiLe - (luongHienTai + luong.chiXang)
-    }
+    private func tinhKetQua(_ luong: LuongShipperDto) -> Double { luongHienTai - luong.chiUng }
 
-    private var ketQua: Double? {
-        guard let luong else { return nil }
-        return tinhKetQua(luong)
-    }
+    private var ketQua: Double? { luong.map(tinhKetQua) }
 
     fileprivate struct ThangKetQua: Identifiable {
         let thang: Int
         let nam: Int
         let ketQua: Double
         var id: String { "\(nam)-\(thang)" }
-        var label: String { "\(thang)/\(nam % 100)" }
+        var label: String { "T\(thang)" }
     }
 
     private var bieuDo6Thang: [ThangKetQua] {
@@ -85,77 +58,62 @@ struct TinhLuongView: View {
                     fullScreenLoading()
                 } else {
                     Form {
-                        Section {
-                            AmountRow(label: "Ứng \(shipperTen)", value: luong?.chiUng ?? 0)
-                                .contentShape(Rectangle())
-                                .onTapGesture { selectedDetail = .ung }
-                        }
+                        Section { KetQuaCard(ketQua: ketQua) }
+                            .listRowInsets(EdgeInsets(top: 18, leading: 16, bottom: 18, trailing: 16))
 
                         Section {
-                            if !isNha {
-                                HStack {
-                                    Text("Tỉ lệ lợi nhuận")
-                                    Spacer()
-                                    TextField("40", text: $tiLeText)
-                                        .keyboardType(.numberPad)
-                                        .multilineTextAlignment(.trailing)
-                                        .frame(width: 70)
-                                    Text("%").foregroundColor(.textMuted)
-                                }
-                            }
                             HStack {
                                 Text("Lương hiện tại")
-                                Spacer()
                                 TextField("10.000.000", text: $luongHienTaiText)
                                     .keyboardType(.numberPad)
                                     .multilineTextAlignment(.trailing)
-                                    .frame(width: 130)
+                                    .font(.body.weight(.semibold))
+                                    .monospacedDigit()
+                                    .focused($luongFocused)
                                     .onChange(of: luongHienTaiText) { newValue in
                                         let formatted = Self.formatThousands(newValue)
                                         if formatted != newValue { luongHienTaiText = formatted }
                                     }
-                                Text("đ").foregroundColor(.textMuted)
+                                Text("đ").foregroundColor(.secondary)
+                            }
+                            Button { showUngDetail = true } label: {
+                                HStack {
+                                    Text("Đã ứng").foregroundColor(.primary)
+                                    Spacer()
+                                    MoneyText(value: luong?.chiUng ?? 0, color: .dangerColor)
+                                    Image(systemName: "chevron.right")
+                                        .font(.footnote.weight(.semibold))
+                                        .foregroundColor(.secondary.opacity(0.5))
+                                }
                             }
                         } footer: {
-                            Text(isNha
-                                 ? "Kết quả = Lương hiện tại − Ứng \(shipperTen)"
-                                 : "Kết quả = Đơn ship × tỉ lệ − (Lương hiện tại + Chi xăng)")
+                            Text("Còn nhận = Lương hiện tại − Đã ứng")
                         }
-
-                        Section {
-                            KetQuaCard(ketQua: ketQua)
-                        }
-                        .listRowBackground(Color.clear)
-                        .listRowInsets(EdgeInsets())
 
                         if !bieuDo6Thang.isEmpty {
-                            Section {
+                            Section("6 tháng gần đây") {
                                 KetQua6ThangChart(items: bieuDo6Thang)
-                            } header: {
-                                Text("Kết quả 6 tháng gần đây")
                             }
                         }
                     }
+                    .scrollDismissesKeyboard(.interactively)
                 }
             }
-            .navigationTitle("Tính lương \(shipperTen)")
-            .navigationBarTitleDisplayMode(.inline)
-            .brandToolbarBackground()
+            .safeAreaInset(edge: .top, spacing: 0) {
+                MonthStepperBar(date: $currentDate) { Task { await load() } }
+            }
+            .navigationTitle("Lương \(shipperTen)")
+            .staffToolbar(isLoggedIn: $isLoggedIn)
             .toolbar {
-                ToolbarItem(placement: .principal) {
-                    MonthDateBar(date: $currentDate, tinted: true) { Task { await load() } }
-                }
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    AccountButton(isLoggedIn: $isLoggedIn, tint: .white)
+                ToolbarItemGroup(placement: .keyboard) {
+                    Spacer()
+                    Button("Xong") { luongFocused = false }
                 }
             }
         }
         .task { await load() }
-        .sheet(item: $selectedDetail) { kind in
-            switch kind {
-            case .ung:
-                ChiTieuThangDetailSheet(ten: "Ứng \(shipperTen)", items: items(nguyenLieuId: Self.ungNguyenLieuId[shipperTen]))
-            }
+        .sheet(isPresented: $showUngDetail) {
+            ChiTieuThangDetailSheet(ten: "Ứng \(shipperTen)", items: ungItems)
         }
     }
 
@@ -172,19 +130,19 @@ struct TinhLuongView: View {
         await load6Thang()
     }
 
-    /// 6 tháng gần đây tính tới currentDate (đang chọn) — gọi song song qua TaskGroup, giữ đúng thứ
-    /// tự tăng dần theo thời gian cho biểu đồ dù các request hoàn tất không theo thứ tự.
+    /// 6 tháng gần đây tính tới currentDate — gọi song song, giữ đúng thứ tự tăng dần cho biểu đồ.
     private func load6Thang() async {
         let cal = Calendar.current
         let thangNamList: [(thang: Int, nam: Int)] = (0..<6).reversed().compactMap { offset in
             guard let d = cal.date(byAdding: .month, value: -offset, to: currentDate) else { return nil }
             return (cal.component(.month, from: d), cal.component(.year, from: d))
         }
+        let ten = shipperTen
 
         let results = await withTaskGroup(of: (Int, Int, Int, LuongShipperDto?).self) { group in
             for (index, tn) in thangNamList.enumerated() {
                 group.addTask {
-                    let luong = await APIClient.shared.getLuongShipperThang(ten: shipperTen, thang: tn.thang, nam: tn.nam)
+                    let luong = await APIClient.shared.getLuongShipperThang(ten: ten, thang: tn.thang, nam: tn.nam)
                     return (index, tn.thang, tn.nam, luong)
                 }
             }
@@ -199,29 +157,15 @@ struct TinhLuongView: View {
     }
 }
 
-private enum LuongDetailKind: String, Identifiable {
-    case ung
-    var id: String { rawValue }
-}
-
-/// Đường xu hướng kết quả 6 tháng gần đây — mỗi điểm tô màu theo lời/lỗ giống KetQuaCard, đường
-/// nối dùng màu trung tính (brandPrimary) vì bản thân đường không mang nghĩa lời/lỗ, chỉ nối các
-/// điểm cho dễ nhìn xu hướng tăng/giảm.
 private struct KetQua6ThangChart: View {
     let items: [TinhLuongView.ThangKetQua]
 
     var body: some View {
         Chart(items) { item in
-            LineMark(x: .value("Tháng", item.label), y: .value("Kết quả", item.ketQua))
-                .foregroundStyle(Color.brandPrimary)
-            PointMark(x: .value("Tháng", item.label), y: .value("Kết quả", item.ketQua))
-                .foregroundStyle(item.ketQua >= 0 ? Color.successColor : Color.dangerColor)
-                .symbolSize(60)
-            RuleMark(y: .value("Hoà vốn", 0))
-                .foregroundStyle(Color.textMuted.opacity(0.3))
-                .lineStyle(StrokeStyle(dash: [4, 4]))
+            BarMark(x: .value("Tháng", item.label), y: .value("Còn nhận", item.ketQua))
+                .foregroundStyle(item.ketQua >= 0 ? Color.brandPrimary.gradient : Color.dangerColor.gradient)
+                .cornerRadius(6)
         }
-        .chartXAxis { AxisMarks(values: .automatic) { AxisValueLabel().font(.caption2) } }
         .chartYAxis {
             AxisMarks(position: .leading) { value in
                 AxisGridLine()
@@ -232,49 +176,33 @@ private struct KetQua6ThangChart: View {
                 }
             }
         }
-        .frame(height: 160)
+        .frame(height: 180)
         .padding(.vertical, 8)
     }
 }
 
-/// 3 trạng thái riêng: dương = có lời (thẻ xanh, ăn mừng icon nảy nhẹ), 0 = hoà vốn (thẻ vàng, điềm
-/// tĩnh), âm = lỗ vốn (thẻ đỏ, không ăn mừng).
+/// Số "Còn nhận" lớn ở đầu màn — xanh khi dương, đỏ khi âm.
 private struct KetQuaCard: View {
     let ketQua: Double?
-    @State private var bounce = false
 
-    private var trangThai: (emoji: String, text: String, color: Color)? {
-        guard let ketQua else { return nil }
-        if ketQua > 0 { return ("🎉🥳🎊", "Đang có lời, ăn mừng thôi ahihi!", .successColor) }
-        if ketQua == 0 { return ("⚖️", "Hoà vốn, huề nhau nhé!", .warningColor) }
-        return ("😥", "Đang lỗ vốn, ráng lên nào 💪", .dangerColor)
+    private var color: Color {
+        guard let ketQua else { return .secondary }
+        return ketQua >= 0 ? .successColor : .dangerColor
     }
 
     var body: some View {
-        VStack(spacing: 8) {
-            if let ketQua, let trangThai {
-                Text(trangThai.emoji)
-                    .font(.system(size: 40))
-                    .scaleEffect(bounce ? 1.15 : 1.0)
-                    .onAppear {
-                        guard ketQua > 0 else { return }
-                        withAnimation(.easeInOut(duration: 0.6).repeatForever(autoreverses: true)) {
-                            bounce = true
-                        }
-                    }
-                Text(HoaDonFormatting.money(ketQua))
-                    .font(.system(size: 30, weight: .heavy))
-                    .monospacedDigit()
-                Text(trangThai.text)
-                    .font(.subheadline.weight(.semibold))
+        VStack(alignment: .leading, spacing: 6) {
+            Text("Còn nhận").font(.subheadline).foregroundColor(.secondary)
+            if let ketQua {
+                MoneyText(value: ketQua, font: .system(size: 36, weight: .bold, design: .rounded), color: color)
+                Label(ketQua >= 0 ? "Chưa ứng quá lương" : "Đã ứng quá lương",
+                      systemImage: ketQua >= 0 ? "checkmark.seal.fill" : "exclamationmark.triangle.fill")
+                    .font(.footnote.weight(.medium))
+                    .foregroundColor(color)
             } else {
                 ProgressView()
             }
         }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 20)
-        .background((trangThai?.color ?? .textMuted).opacity(0.12))
-        .foregroundColor(trangThai?.color ?? .textMuted)
-        .cornerRadius(16)
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 }

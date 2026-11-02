@@ -1,5 +1,4 @@
 import SwiftUI
-import UIKit
 
 // Tông xanh navy chuyên nghiệp, khớp COLORS.primary của AppShippingIOS (src/theme.ts).
 extension Color {
@@ -8,27 +7,6 @@ extension Color {
     static let successColor = Color(red: 0x19 / 255, green: 0x87 / 255, blue: 0x54 / 255)
     static let dangerColor = Color(red: 0xDC / 255, green: 0x35 / 255, blue: 0x45 / 255)
     static let warningColor = Color(red: 0xFF / 255, green: 0xC1 / 255, blue: 0x07 / 255)
-    static let pinkColor = Color(red: 0xD6 / 255, green: 0x33 / 255, blue: 0x84 / 255)
-
-    /// Trộn với trắng ra bản pastel đặc (không dùng opacity) — dùng làm nền card, giống cách Mobile
-    /// web tô nền card bằng 1 màu pastel cố định thay vì border color mờ đi (opacity phụ thuộc nền
-    /// phía sau, dễ ra xám/đậm khác ý muốn, nhất là dark mode).
-    func pastelBackground(_ amount: CGFloat = 0.82) -> Color {
-        var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
-        UIColor(self).getRed(&r, green: &g, blue: &b, alpha: &a)
-        func mix(_ c: CGFloat) -> CGFloat { c + (1 - c) * amount }
-        return Color(red: mix(r), green: mix(g), blue: mix(b))
-    }
-}
-
-/// Vòng loading toàn màn hình dùng chung mọi tab — mặc định ProgressView() màu xám hệ thống, kích
-/// thước nhỏ, dễ tưởng app treo trên nền sáng (cùng feedback đã sửa bên AppDatHangIOS 2026-09-18:
-/// "mờ lắm, cứ tưởng app bị treo"). Phóng to 1.4x + tint brandPrimary cho rõ ràng là đang tải.
-func fullScreenLoading() -> some View {
-    ProgressView()
-        .scaleEffect(1.4)
-        .tint(.brandPrimary)
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
 }
 
 enum HoaDonFormatting {
@@ -45,7 +23,7 @@ enum HoaDonFormatting {
         (moneyFormatter.string(from: NSNumber(value: value)) ?? "\(Int(value))") + "đ"
     }
 
-    /// Viết tắt cho footer (vd "1807k") — không cần rõ số, chỉ cần ước lượng nhanh.
+    /// Viết tắt cho trục biểu đồ (vd "1807k").
     static func moneyShort(_ value: Double) -> String {
         "\(Int((value / 1000).rounded()))k"
     }
@@ -66,4 +44,26 @@ enum HoaDonFormatting {
         }
         return nil
     }
+}
+
+extension String {
+    /// So khớp không phân biệt hoa/thường, bỏ qua nil/rỗng — dùng cho mọi bộ lọc search client-side.
+    /// Mặc định KHÔNG phân biệt dấu tiếng Việt (gõ "ca phe" vẫn khớp "Cà Phê").
+    func matchesSearch(_ query: String, diacriticInsensitive: Bool = true) -> Bool {
+        guard !query.isEmpty else { return true }
+        var options: String.CompareOptions = [.caseInsensitive]
+        guard diacriticInsensitive else { return range(of: query, options: options) != nil }
+        options.insert(.diacriticInsensitive)
+        // .diacriticInsensitive KHÔNG gộp "đ" về "d" (Unicode coi đ là chữ riêng) — tự đổi đ→d hai phía.
+        return Self.boD(self).range(of: Self.boD(query), options: options) != nil
+    }
+
+    private static func boD(_ s: String) -> String {
+        s.replacingOccurrences(of: "đ", with: "d").replacingOccurrences(of: "Đ", with: "D")
+    }
+}
+
+func anyMatchesSearch(_ query: String, diacriticInsensitive: Bool = true, _ fields: String?...) -> Bool {
+    guard !query.isEmpty else { return true }
+    return fields.contains { $0?.matchesSearch(query, diacriticInsensitive: diacriticInsensitive) == true }
 }
