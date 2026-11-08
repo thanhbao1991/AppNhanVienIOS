@@ -98,8 +98,7 @@ func fullScreenLoading() -> some View {
 
 // MARK: - Chọn ngày / tháng
 
-/// Thanh chọn ngày ghim dưới tiêu đề: ‹ Thứ Hai, 02/11 › — chạm vào ngày để mở lịch, có nút
-/// "Hôm nay" khi đang xem ngày khác. Nền trùng nền List insetGrouped để liền một khối.
+/// Ô chọn ngày giữa thanh trên: "Thứ Hai, 02/11" — chạm để mở lịch, có nút về hôm nay khi đang xem ngày khác.
 struct DateStepperBar: View {
     @Binding var date: Date
     var onChange: () -> Void
@@ -179,6 +178,8 @@ struct MonthStepperBar: View {
     }
 }
 
+/// Ô ngày/tháng gọn đặt GIỮA thanh trên (ToolbarItem .principal) — đã bỏ 2 nút ‹ › (chủ quán 2026-11-08: "điều hướng
+/// quá tốn không gian"). Chạm vào để mở lịch; đang xem ngày khác thì có nút quay về hôm nay.
 private struct StepperBarLayout: View {
     let title: String
     let showReset: Bool
@@ -189,45 +190,27 @@ private struct StepperBarLayout: View {
     let onReset: () -> Void
 
     var body: some View {
-        HStack(spacing: 0) {
-            stepButton("chevron.left", label: "Trước", action: onPrev)
-            Spacer(minLength: 4)
+        HStack(spacing: 6) {
             Button(action: onTitle) {
-                HStack(spacing: 6) {
-                    Image(systemName: "calendar").font(.subheadline)
-                    Text(title).font(.subheadline.weight(.semibold))
+                HStack(spacing: 5) {
+                    Image(systemName: "calendar").font(.footnote)
+                    Text(title).font(.subheadline.weight(.semibold)).lineLimit(1).minimumScaleFactor(0.8)
                 }
                 .foregroundColor(.primary)
-                .padding(.horizontal, 14)
-                .padding(.vertical, 8)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 6)
                 .background(Color(.secondarySystemGroupedBackground), in: Capsule())
             }
             .buttonStyle(.plain)
             if showReset {
-                Button(resetTitle, action: onReset)
-                    .font(.footnote.weight(.semibold))
-                    .padding(.leading, 8)
-                    .transition(.opacity)
+                Button(action: onReset) {
+                    Image(systemName: "arrow.uturn.backward.circle.fill").font(.title3)
+                }
+                .accessibilityLabel(resetTitle)
+                .transition(.opacity)
             }
-            Spacer(minLength: 4)
-            stepButton("chevron.right", label: "Sau", action: onNext)
         }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 6)
-        .frame(maxWidth: .infinity)
-        // Nền đặc (không material) — material nhấp nháy khi List cuộn bên dưới.
-        .background(Color(.systemGroupedBackground))
         .animation(.easeInOut(duration: 0.15), value: showReset)
-    }
-
-    private func stepButton(_ symbol: String, label: String, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            Image(systemName: symbol)
-                .font(.body.weight(.semibold))
-                .frame(width: 40, height: 36)
-                .contentShape(Rectangle())
-        }
-        .accessibilityLabel(label)
     }
 }
 

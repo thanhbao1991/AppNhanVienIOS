@@ -54,9 +54,8 @@ struct ShipView: View {
                     .refreshable { await load() }
                 }
             }
-            .safeAreaInset(edge: .top, spacing: 0) {
-                DateStepperBar(date: $currentDate) { Task { await load() } }
-            }
+            // Ngày nằm giữa thanh trên (giữa tài khoản và chuông) — tiết kiệm chỗ (chủ quán 2026-11-08).
+            .toolbar { ToolbarItem(placement: .principal) { DateStepperBar(date: $currentDate) { Task { await load() } } } }
             .navigationBarTitleDisplayMode(.inline)
             .staffToolbar(isLoggedIn: $isLoggedIn)
         }

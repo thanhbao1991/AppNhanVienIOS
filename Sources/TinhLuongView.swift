@@ -99,9 +99,8 @@ struct TinhLuongView: View {
                     .scrollDismissesKeyboard(.interactively)
                 }
             }
-            .safeAreaInset(edge: .top, spacing: 0) {
-                MonthStepperBar(date: $currentDate) { Task { await load() } }
-            }
+            // Ngày nằm giữa thanh trên (giữa tài khoản và chuông) — tiết kiệm chỗ (chủ quán 2026-11-08).
+            .toolbar { ToolbarItem(placement: .principal) { MonthStepperBar(date: $currentDate) { Task { await load() } } } }
             .navigationBarTitleDisplayMode(.inline)
             .staffToolbar(isLoggedIn: $isLoggedIn)
             .toolbar {
