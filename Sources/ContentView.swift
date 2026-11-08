@@ -8,7 +8,8 @@ struct ContentView: View {
     @ObservedObject private var dipLe = DipLe.shared
     @Environment(\.scenePhase) private var scenePhase
     /// Màn chào dịp lễ (chỉ lúc mở app) — xem DipLe.swift, cùng cách AppQuanLyIOS.
-    @State private var manChao: DipLeTheme?
+    /// Có dịp lưu máy → hiện ngay từ khung hình đầu (không chờ server).
+    @State private var manChao: DipLeTheme? = DipLe.themeLuuMay()
 
     var body: some View {
         ZStack {
@@ -42,8 +43,12 @@ struct ContentView: View {
             }
         }
         .task {
+            // Đã có dịp lưu máy thì màn chào đang hiện sẵn — chỉ tải lại ngầm. Chưa có thì chỉ hiện nếu server trả
+            // kịp ~1s; chậm hơn thì bỏ lần này, khỏi bật màn chào đè lúc đang dùng app.
+            let daHienSan = manChao != nil
+            let batDau = Date()
             await dipLe.load()
-            if let t = dipLe.active { manChao = t }
+            if !daHienSan, Date().timeIntervalSince(batDau) < 1.0, let t = dipLe.active { manChao = t }
         }
         .onChange(of: scenePhase) { phase in
             if phase == .active { Task { await dipLe.load() } }
