@@ -213,6 +213,16 @@ enum ShipAction {
         }
     }
 
+    /// Chữ trên nút thao tác — 3 nút thanh toán ghi đúng phím tắt Desktop (chủ quán 2026-11-08), Trả nợ giữ chữ.
+    var nutLabel: String {
+        switch self {
+        case .tienMat: return "F1"
+        case .chuyenKhoan: return "F4"
+        case .ghiNo: return "F12"
+        default: return label
+        }
+    }
+
     var symbol: String {
         switch self {
         case .tienMat: return "banknote"
@@ -306,8 +316,6 @@ private struct ShipOrderRows: View {
     let disabled: Bool
     let onAction: (ShipAction) -> Void
 
-    private let columns = [GridItem(.flexible(), spacing: 10), GridItem(.flexible(), spacing: 10)]
-
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
             VStack(alignment: .leading, spacing: 4) {
@@ -359,11 +367,13 @@ private struct ShipOrderRows: View {
 
         let actions = hd.actions
         if !actions.isEmpty {
-            LazyVGrid(columns: columns, spacing: 10) {
+            // 1 dòng: F1 / F4 / F12 (+ Trả nợ nếu có).
+            HStack(spacing: 10) {
                 ForEach(actions, id: \.self) { a in
                     Button { onAction(a) } label: {
-                        Label(a.label, systemImage: a.symbol)
-                            .font(.subheadline.weight(.semibold))
+                        Text(a.nutLabel)
+                            .font(.headline)
+                            .lineLimit(1)
                             .frame(maxWidth: .infinity, minHeight: 34)
                     }
                     .buttonStyle(.bordered)

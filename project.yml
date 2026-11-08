@@ -29,10 +29,46 @@ targets:
         NSLocalNetworkUsageDescription: Kết nối máy quầy trong cùng Wi-Fi để nhập ảnh.
         NSAppTransportSecurity:
           NSAllowsLocalNetworking: true
+        # Icon dịp lễ (2026-11-08, cùng bộ icon app khách/AppQuanLy): đổi sang AppIcon-<MA> theo dịp (xem DipLe.swift).
+        CFBundleIcons:
+          CFBundlePrimaryIcon:
+            CFBundleIconName: AppIcon
+          CFBundleAlternateIcons:
+            AppIcon-NOEL:
+              CFBundleIconName: AppIcon-NOEL
+            AppIcon-VALENTINE:
+              CFBundleIconName: AppIcon-VALENTINE
+            AppIcon-TETAL:
+              CFBundleIconName: AppIcon-TETAL
+            AppIcon-TETDUONG:
+              CFBundleIconName: AppIcon-TETDUONG
+            AppIcon-QTPHUNU:
+              CFBundleIconName: AppIcon-QTPHUNU
+            AppIcon-PHUNUVN:
+              CFBundleIconName: AppIcon-PHUNUVN
+            AppIcon-GIOTO:
+              CFBundleIconName: AppIcon-GIOTO
+            AppIcon-GIAIPHONG:
+              CFBundleIconName: AppIcon-GIAIPHONG
+            AppIcon-THIEUNHI:
+              CFBundleIconName: AppIcon-THIEUNHI
+            AppIcon-DOANNGO:
+              CFBundleIconName: AppIcon-DOANNGO
+            AppIcon-THUONGBINH:
+              CFBundleIconName: AppIcon-THUONGBINH
+            AppIcon-VULAN:
+              CFBundleIconName: AppIcon-VULAN
+            AppIcon-QUOCKHANH:
+              CFBundleIconName: AppIcon-QUOCKHANH
+            AppIcon-TRUNGTHU:
+              CFBundleIconName: AppIcon-TRUNGTHU
+            AppIcon-NHAGIAO:
+              CFBundleIconName: AppIcon-NHAGIAO
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.denncoffee.appnhanvien
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS: YES
         TARGETED_DEVICE_FAMILY: "1"
         SWIFT_VERSION: "5.0"
         # aps-environment cho push đơn mới/sửa/xoá — export app-store tự đổi development → production.
