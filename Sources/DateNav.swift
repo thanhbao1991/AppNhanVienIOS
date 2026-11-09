@@ -71,9 +71,10 @@ struct MonthYearPickerSheet: View {
             }
             .navigationTitle("Chọn tháng")
             .navigationBarTitleDisplayMode(.inline)
+            .thanhTrenThuongHieu()
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Xong") { commit() }
+                    Button("Xong") { commit() }.foregroundColor(.white)
                 }
             }
         }

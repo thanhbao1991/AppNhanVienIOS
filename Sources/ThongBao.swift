@@ -30,6 +30,7 @@ struct ThongBaoButton: View {
         Button { badge.moChuong = true } label: {
             Image(systemName: badge.soChuaXem > 0 ? "bell.badge" : "bell")
                 .font(.system(size: 18))
+                .foregroundColor(.white)   // thanh trên gradient
                 .overlay(alignment: .topTrailing) {
                     if badge.soChuaXem > 0 {
                         Text(badge.soChuaXem > 49 ? "50+" : "\(badge.soChuaXem)")
@@ -79,22 +80,27 @@ struct ThongBaoListView: View {
                         }
                         ForEach(items) { item in
                             ThongBaoRowView(item: item, moi: ThongBaoFormatting.moc(item.taoLuc) > daXemLucMo)
+                                .dongThe()
                         }
                         if hasMore && !items.isEmpty {
                             ProgressView()
                                 .frame(maxWidth: .infinity)
+                                .listRowBackground(Color.clear)
+                                .listRowSeparator(.hidden)
                                 .task(id: items.count) { await loadMore() }
                         }
                     }
-                    .listStyle(.insetGrouped)
+                    .listStyle(.plain)
+                    .nenApp()
                     .refreshable { await load() }
                 }
             }
             .navigationTitle("Thông báo")
             .navigationBarTitleDisplayMode(.inline)
+            .thanhTrenThuongHieu()
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Xong") { dismiss() }
+                    Button("Xong") { dismiss() }.foregroundColor(.white)
                 }
             }
         }

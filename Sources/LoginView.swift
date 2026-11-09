@@ -32,7 +32,7 @@ struct LoginView: View {
             .frame(maxWidth: .infinity)
         }
         .scrollDismissesKeyboard(.interactively)
-        .background(Color(.systemGroupedBackground).ignoresSafeArea())
+        .background(Color.appNen.ignoresSafeArea())
     }
 
     private var logoHeader: some View {
@@ -42,7 +42,7 @@ struct LoginView: View {
                 .foregroundColor(.white)
                 .frame(width: 84, height: 84)
                 .background(
-                    LinearGradient(colors: [Color.brandPrimary.opacity(0.85), Color.brandPrimary], startPoint: .top, endPoint: .bottom),
+                    Brand.gradient,
                     in: RoundedRectangle(cornerRadius: 20, style: .continuous)
                 )
                 .shadow(color: Color.brandPrimary.opacity(0.3), radius: 12, x: 0, y: 6)
@@ -98,11 +98,9 @@ struct LoginView: View {
                     }
                 }
                 .frame(maxWidth: .infinity)
-                .frame(height: 30)
+                .frame(height: 26)
             }
-            .buttonStyle(.borderedProminent)
-            .buttonBorderShape(.roundedRectangle(radius: 14))
-            .controlSize(.large)
+            .buttonStyle(.gradientProminent)
             .disabled(loading || taiKhoan.isEmpty || matKhau.isEmpty)
             .padding(.top, 8)
         }
@@ -116,7 +114,11 @@ struct LoginView: View {
         }
         .padding(.horizontal, 14)
         .frame(height: 52)
-        .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .background(
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .fill(Color.white)
+                .shadow(color: .black.opacity(0.05), radius: 8, y: 2)
+        )
         .overlay(
             RoundedRectangle(cornerRadius: 14, style: .continuous)
                 .strokeBorder(isFocused ? Color.brandPrimary : Color.clear, lineWidth: 1.5)

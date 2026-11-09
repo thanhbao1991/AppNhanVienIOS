@@ -224,11 +224,13 @@ private struct ReceiptReviewSheet: View {
                     Text(errorMessage).foregroundColor(.dangerColor)
                 }
             }
+            .nenApp()
             .navigationTitle("Duyệt hoá đơn")
             .navigationBarTitleDisplayMode(.inline)
+            .thanhTrenThuongHieu()
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Huỷ") { dismiss() }.disabled(saving)
+                    Button("Huỷ") { dismiss() }.foregroundColor(.white.opacity(saving ? 0.45 : 1)).disabled(saving)
                 }
             }
             .safeAreaInset(edge: .bottom) {
@@ -239,9 +241,7 @@ private struct ReceiptReviewSheet: View {
                         .fontWeight(.bold)
                         .frame(maxWidth: .infinity)
                 }
-                .buttonStyle(.borderedProminent)
-                .tint(.brandPrimary)
-                .controlSize(.large)
+                .buttonStyle(.gradientProminent)
                 .disabled(!canSave || saving)
                 .padding(.horizontal, 16)
                 .padding(.top, 10)

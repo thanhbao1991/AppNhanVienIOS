@@ -50,6 +50,7 @@ struct SanPhamHinhAnhListView: View {
                         }
                     }
                     .listStyle(.insetGrouped)
+                    .nenApp()
                     .refreshable { await load() }
                 }
             }

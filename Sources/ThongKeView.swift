@@ -42,6 +42,7 @@ struct ThongKeView: View {
                         Section("Chi tiết") { detailRows }
                     }
                     .listStyle(.insetGrouped)
+                    .nenApp()
                     .refreshable { await load() }
                 }
             }

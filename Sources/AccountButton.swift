@@ -20,6 +20,7 @@ struct AccountMenu: View {
         } label: {
             Image(systemName: "person.crop.circle")
                 .font(.system(size: 20))
+                .foregroundColor(.white)   // thanh trên gradient
                 .accessibilityLabel("Tài khoản")
         }
         .sheet(isPresented: $showNhapAnh) { NhapAnhView() }

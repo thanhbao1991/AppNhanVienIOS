@@ -49,11 +49,13 @@ struct NhapAnhView: View {
                         .font(.footnote).foregroundColor(.secondary)
                 }
             }
+            .nenApp()
             .navigationTitle("Nhập ảnh từ máy quầy")
             .navigationBarTitleDisplayMode(.inline)
+            .thanhTrenThuongHieu()
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Đóng") { dismiss() }.disabled(running)
+                    Button("Đóng") { dismiss() }.foregroundColor(.white.opacity(running ? 0.45 : 1)).disabled(running)
                 }
             }
         }

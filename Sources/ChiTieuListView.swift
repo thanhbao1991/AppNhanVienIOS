@@ -48,6 +48,7 @@ struct ChiTieuListView: View {
                         }
                     }
                     .listStyle(.insetGrouped)
+                    .nenApp()
                     .refreshable { await load() }
                 }
             }
@@ -244,14 +245,17 @@ private struct EditExpenseSheet: View {
                     }
                 }
             }
+            .nenApp()
             .navigationTitle("Sửa chi tiêu")
             .navigationBarTitleDisplayMode(.inline)
+            .thanhTrenThuongHieu()
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) { Button("Huỷ") { dismiss() } }
+                ToolbarItem(placement: .cancellationAction) { Button("Huỷ") { dismiss() }.foregroundColor(.white) }
                 ToolbarItem(placement: .confirmationAction) {
-                    if saving { ProgressView() } else {
+                    if saving { ProgressView().tint(.white) } else {
                         Button("Lưu") { Task { await save() } }
                             .fontWeight(.semibold)
+                            .foregroundColor(.white.opacity(thanhTien <= 0 ? 0.45 : 1))
                             .disabled(thanhTien <= 0)
                     }
                 }
@@ -390,14 +394,17 @@ struct AddExpenseSheet: View {
                     Section { Text(errorMessage).foregroundColor(.dangerColor) }
                 }
             }
+            .nenApp()
             .navigationTitle("Thêm chi tiêu")
             .navigationBarTitleDisplayMode(.inline)
+            .thanhTrenThuongHieu()
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) { Button("Huỷ") { dismiss() } }
+                ToolbarItem(placement: .cancellationAction) { Button("Huỷ") { dismiss() }.foregroundColor(.white) }
                 ToolbarItem(placement: .confirmationAction) {
-                    if saving { ProgressView() } else {
+                    if saving { ProgressView().tint(.white) } else {
                         Button("Lưu") { Task { await save() } }
                             .fontWeight(.semibold)
+                            .foregroundColor(.white.opacity(selected == nil || thanhTien <= 0 ? 0.45 : 1))
                             .disabled(selected == nil || thanhTien <= 0)
                     }
                 }

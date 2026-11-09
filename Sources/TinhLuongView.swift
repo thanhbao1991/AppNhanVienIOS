@@ -96,6 +96,7 @@ struct TinhLuongView: View {
                             }
                         }
                     }
+                    .nenApp()
                     .scrollDismissesKeyboard(.interactively)
                 }
             }

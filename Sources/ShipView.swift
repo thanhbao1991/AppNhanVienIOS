@@ -51,6 +51,7 @@ struct ShipView: View {
                         }
                     }
                     .listStyle(.insetGrouped)
+                    .nenApp()
                     .refreshable { await load() }
                 }
             }

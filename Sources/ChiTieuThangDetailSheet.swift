@@ -43,10 +43,12 @@ struct ChiTieuThangDetailSheet: View {
                 }
             }
             .listStyle(.insetGrouped)
+            .nenApp()
             .navigationTitle(ten)
             .navigationBarTitleDisplayMode(.inline)
+            .thanhTrenThuongHieu()
             .toolbar {
-                ToolbarItem(placement: .confirmationAction) { Button("Xong") { dismiss() } }
+                ToolbarItem(placement: .confirmationAction) { Button("Xong") { dismiss() }.foregroundColor(.white) }
             }
         }
         .presentationDetents([.medium, .large])

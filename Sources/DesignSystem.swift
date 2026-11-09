@@ -1,20 +1,105 @@
 import SwiftUI
+import UIKit
 
-// Thành phần giao diện dùng chung mọi tab — phong cách native iOS (giống Cài đặt/Sức khoẻ): List
-// insetGrouped trên nền systemGroupedBackground, tiêu đề lớn, SF Symbols trong ô vuông bo góc màu.
+// Thành phần giao diện dùng chung mọi tab. 09/11/2026: theo style app khách (AppDatHangIOS Theme.swift +
+// TaiKhoanUI.swift) — thanh trên gradient chéo màu chủ đạo → tối, chữ trắng; nền xám #F5F5F5; thẻ trắng
+// bo 18 có bóng nhẹ; ô icon tô màu nhạt; nút chính gradient.
 
-/// Ô vuông bo góc màu + SF Symbol trắng — kiểu icon từng dòng trong app Cài đặt.
+extension Color {
+    /// Nền xám trung tính — cùng Theme.bg của app khách.
+    static let appNen = Color(red: 0xF5 / 255, green: 0xF5 / 255, blue: 0xF5 / 255)
+    /// Bản tối của màu chủ đạo (navy #1E4E8C → ~#15375F, khớp primaryDark app khách) — tính theo màu hiện tại
+    /// để dịp lễ đổi màu thì gradient đổi theo.
+    static var brandPrimaryDark: Color { brandPrimary.toiHon(0.7) }
+
+    func toiHon(_ heSo: CGFloat) -> Color {
+        var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
+        UIColor(self).getRed(&r, green: &g, blue: &b, alpha: &a)
+        return Color(red: r * heSo, green: g * heSo, blue: b * heSo)
+    }
+}
+
+enum Brand {
+    static let bo: CGFloat = 18
+    /// Gradient chéo sáng→tối — thanh trên, nút chính, thanh lọc (cùng công thức Theme.primaryGradient app khách).
+    static var gradient: LinearGradient {
+        LinearGradient(colors: [.brandPrimary, .brandPrimaryDark], startPoint: .topLeading, endPoint: .bottomTrailing)
+    }
+}
+
+extension View {
+    /// Thanh trên gradient chữ trắng — gắn vào nội dung gốc của mỗi NavigationStack (tab + sheet).
+    /// Nút trên thanh phải tự tô trắng (.foregroundColor(.white)) vì app đặt .tint(.brandPrimary) toàn cục.
+    func thanhTrenThuongHieu() -> some View {
+        self
+            .toolbarBackground(Brand.gradient, for: .navigationBar)
+            .toolbarBackground(.visible, for: .navigationBar)
+            .toolbarColorScheme(.dark, for: .navigationBar)
+    }
+
+    /// List/ScrollView trên nền xám #F5F5F5 (thay systemGroupedBackground).
+    func nenApp() -> some View {
+        self
+            .scrollContentBackground(.hidden)
+            .background(Color.appNen)
+    }
+
+    /// 1 dòng List(.plain) thành 1 thẻ trắng riêng (cùng cardRow + cardBoxStyle app khách).
+    func dongThe(dem: CGFloat = 12) -> some View {
+        self
+            .theTrang(dem: dem)
+            .listRowInsets(EdgeInsets(top: 5, leading: 16, bottom: 5, trailing: 16))
+            .listRowBackground(Color.clear)
+            .listRowSeparator(.hidden)
+    }
+
+    /// Thẻ trắng bo 18 có bóng nhẹ — khối cơ bản (cùng tkThe app khách).
+    func theTrang(dem: CGFloat = 16) -> some View {
+        self
+            .padding(dem)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(
+                RoundedRectangle(cornerRadius: Brand.bo, style: .continuous)
+                    .fill(Color.white)
+                    .shadow(color: .black.opacity(0.05), radius: 8, y: 2)
+            )
+    }
+}
+
+/// Nút chính nền gradient (thay .borderedProminent) — cùng GradientProminentButtonStyle app khách.
+struct GradientProminentButtonStyle: ButtonStyle {
+    var danger = false
+    @Environment(\.isEnabled) private var isEnabled
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .foregroundColor(.white)
+            .padding(.horizontal, 16)
+            .padding(.vertical, 12)
+            .background(danger
+                ? LinearGradient(colors: [.red, .red.opacity(0.75)], startPoint: .topLeading, endPoint: .bottomTrailing)
+                : Brand.gradient)
+            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+            .opacity(isEnabled ? (configuration.isPressed ? 0.85 : 1) : 0.45)
+    }
+}
+
+extension ButtonStyle where Self == GradientProminentButtonStyle {
+    static var gradientProminent: GradientProminentButtonStyle { GradientProminentButtonStyle() }
+}
+
+/// Ô vuông bo góc tô màu nhạt + SF Symbol cùng màu — kiểu TKIcon app khách (trước: nền đặc chữ trắng kiểu Cài đặt).
 struct IconBadge: View {
     let symbol: String
     let color: Color
-    var size: CGFloat = 28
+    var size: CGFloat = 30
 
     var body: some View {
         Image(systemName: symbol)
-            .font(.system(size: size * 0.5, weight: .semibold))
-            .foregroundColor(.white)
+            .font(.system(size: size * 0.48, weight: .semibold))
+            .foregroundColor(color)
             .frame(width: size, height: size)
-            .background(color, in: RoundedRectangle(cornerRadius: size * 0.25, style: .continuous))
+            .background(color.opacity(0.13), in: RoundedRectangle(cornerRadius: size * 0.3, style: .continuous))
     }
 }
 
@@ -92,8 +177,9 @@ struct LoadErrorRow: View {
 func fullScreenLoading() -> some View {
     ProgressView()
         .controlSize(.large)
+        .tint(.brandPrimary)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Color(.systemGroupedBackground))
+        .background(Color.appNen)
 }
 
 // MARK: - Chọn ngày / tháng
@@ -124,8 +210,9 @@ struct DateStepperBar: View {
                     .padding(.horizontal)
                     .navigationTitle("Chọn ngày")
                     .navigationBarTitleDisplayMode(.inline)
+                    .thanhTrenThuongHieu()
                     .toolbar {
-                        ToolbarItem(placement: .confirmationAction) { Button("Xong") { showPicker = false } }
+                        ToolbarItem(placement: .confirmationAction) { Button("Xong") { showPicker = false }.foregroundColor(.white) }
                     }
                     .onChange(of: date) { _ in
                         showPicker = false
@@ -196,15 +283,16 @@ private struct StepperBarLayout: View {
                     Image(systemName: "calendar").font(.footnote)
                     Text(title).font(.subheadline.weight(.semibold)).lineLimit(1).minimumScaleFactor(0.8)
                 }
-                .foregroundColor(.primary)
+                // Viên trắng mờ trên thanh gradient (09/11/2026, theo style app khách).
+                .foregroundColor(.white)
                 .padding(.horizontal, 12)
                 .padding(.vertical, 6)
-                .background(Color(.secondarySystemGroupedBackground), in: Capsule())
+                .background(Color.white.opacity(0.18), in: Capsule())
             }
             .buttonStyle(.plain)
             if showReset {
                 Button(action: onReset) {
-                    Image(systemName: "arrow.uturn.backward.circle.fill").font(.title3)
+                    Image(systemName: "arrow.uturn.backward.circle.fill").font(.title3).foregroundColor(.white)
                 }
                 .accessibilityLabel(resetTitle)
                 .transition(.opacity)
@@ -221,12 +309,13 @@ extension View {
     func staffToolbar<Extra: View>(isLoggedIn: Binding<Bool>, @ViewBuilder extra: () -> Extra) -> some View {
         let extraView = extra()
         return toolbar {
-            ToolbarItem(placement: .navigationBarLeading) { AccountMenu(isLoggedIn: isLoggedIn) }
+            ToolbarItem(placement: .navigationBarLeading) { AccountMenu(isLoggedIn: isLoggedIn).foregroundColor(.white) }
             ToolbarItemGroup(placement: .navigationBarTrailing) {
-                ThongBaoButton()
-                extraView
+                ThongBaoButton().foregroundColor(.white)
+                extraView.foregroundColor(.white)
             }
         }
+        .thanhTrenThuongHieu()
     }
 
     func staffToolbar(isLoggedIn: Binding<Bool>) -> some View {
