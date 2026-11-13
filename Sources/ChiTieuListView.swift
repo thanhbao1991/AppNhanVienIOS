@@ -207,6 +207,7 @@ private struct EditExpenseSheet: View {
     @State private var saving = false
     @State private var showDeleteConfirm = false
     @State private var errorMessage: String?
+    @State private var warningAlertText: String?
 
     private var donGia: Double { soLuong > 0 ? thanhTien / soLuong : 0 }
 
@@ -268,6 +269,15 @@ private struct EditExpenseSheet: View {
         } message: {
             Text("Không thể hoàn tác.")
         }
+        // Backend đã lưu nhưng đơn giá mới lệch lớn so với lần mua gần nhất — chỉ cảnh báo, không chặn.
+        .alert("Giá bất thường", isPresented: Binding(
+            get: { warningAlertText != nil },
+            set: { if !$0 { warningAlertText = nil } }
+        )) {
+            Button("Đã hiểu") { onChanged(); dismiss() }
+        } message: {
+            Text(warningAlertText ?? "")
+        }
     }
 
     private func save() async {
@@ -283,8 +293,12 @@ private struct EditExpenseSheet: View {
         let result = await APIClient.shared.updateChiTieu(id: item.id, body)
         saving = false
         if result.success {
-            onChanged()
-            dismiss()
+            if let warning = result.warnings.first {
+                warningAlertText = warning
+            } else {
+                onChanged()
+                dismiss()
+            }
         } else {
             errorMessage = result.message ?? "Không lưu được."
         }
