@@ -43,7 +43,8 @@ struct SanPhamHinhAnhListView: View {
                                     SanPhamHinhAnhRow(
                                         sanPham: sp,
                                         uploading: uploadingId == sp.id,
-                                        onPicked: { data, mime in Task { await upload(id: sp.id, data: data, mime: mime) } }
+                                        onPicked: { data, mime in Task { await upload(id: sp.id, data: data, mime: mime) } },
+                                        onLoi: { errorMessage = $0 }
                                     )
                                 }
                             }
@@ -99,6 +100,7 @@ private struct SanPhamHinhAnhRow: View {
     let sanPham: SanPhamDto
     let uploading: Bool
     let onPicked: (Data, String) -> Void
+    let onLoi: (String) -> Void
 
     @State private var showPicker = false
     @State private var showCamera = false
@@ -132,16 +134,18 @@ private struct SanPhamHinhAnhRow: View {
         .fullScreenCover(isPresented: $showPicker) {
             LibraryPicker { image in
                 showPicker = false
-                guard let image, let data = image.resizedForMenuUpload().jpegData(compressionQuality: 0.75) else { return }
-                onPicked(data, "image/jpeg")
+                guard let image else { return }
+                let kq = image.menuUploadJPEG()
+                if let data = kq.data { onPicked(data, "image/jpeg") } else { onLoi(kq.loi ?? "Ảnh không dùng được.") }
             }
             .ignoresSafeArea()
         }
         .fullScreenCover(isPresented: $showCamera) {
             CameraPicker { image in
                 showCamera = false
-                guard let image, let data = image.resizedForMenuUpload().jpegData(compressionQuality: 0.75) else { return }
-                onPicked(data, "image/jpeg")
+                guard let image else { return }
+                let kq = image.menuUploadJPEG()
+                if let data = kq.data { onPicked(data, "image/jpeg") } else { onLoi(kq.loi ?? "Ảnh không dùng được.") }
             }
             .ignoresSafeArea()
         }
@@ -204,8 +208,10 @@ struct LibraryPicker: UIViewControllerRepresentable {
 
 extension UIImage {
     /// Center-crop về tỉ lệ 3:4 rồi resize đúng 200x267 — khớp kích thước ảnh seed ban đầu.
+    /// 16/11/2026: nâng 200×267 → 1080×1440 PIXEL (scale 1) giống AppQuanLyIOS — server giờ TỪ CHỐI ảnh nhỏ
+    /// hơn 1080×1440 (SanPhamCrudService), chủ quán không nhận ảnh chất lượng thấp nữa.
     func resizedForMenuUpload() -> UIImage {
-        let targetSize = CGSize(width: 200, height: 267)
+        let targetSize = CGSize(width: 1080, height: 1440)
         let targetRatio = targetSize.width / targetSize.height
         let sourceRatio = size.width / size.height
 
@@ -217,7 +223,20 @@ extension UIImage {
         }
         let origin = CGPoint(x: (targetSize.width - drawSize.width) / 2, y: (targetSize.height - drawSize.height) / 2)
 
-        let renderer = UIGraphicsImageRenderer(size: targetSize)
+        let format = UIGraphicsImageRendererFormat.default()
+        format.scale = 1   // mặc định lấy scale màn hình (3x) → ra 3240×4320, phóng to vô ích
+        let renderer = UIGraphicsImageRenderer(size: targetSize, format: format)
         return renderer.image { _ in draw(in: CGRect(origin: origin, size: drawSize)) }
+    }
+
+    /// Chỉ nhận ảnh đủ nét: phần cắt 3:4 phải ≥1080×1440 pixel (KHÔNG phóng to ảnh nhỏ cho đủ cỡ).
+    func menuUploadJPEG() -> (data: Data?, loi: String?) {
+        let w = size.width * scale, h = size.height * scale
+        if min(w, h * 3 / 4) < 1079.5 {
+            return (nil, "Ảnh quá nhỏ (\(Int(w))×\(Int(h))). Cần ảnh chụp gốc từ điện thoại, tối thiểu 1080×1440 — "
+                + "không dùng ảnh chụp màn hình hay ảnh gửi qua Zalo/Messenger.")
+        }
+        guard let data = resizedForMenuUpload().jpegData(compressionQuality: 0.9) else { return (nil, "Không nén được ảnh.") }
+        return (data, nil)
     }
 }
