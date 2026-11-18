@@ -37,7 +37,7 @@ struct ShipView: View {
                         if hoaDons.isEmpty && !loadFailed {
                             Section {
                                 EmptyStateView(symbol: "bicycle", title: "Chưa có đơn ship",
-                                               message: "Đơn Ship giao cho \(Self.shipper) trong ngày sẽ hiện ở đây.")
+                                               message: "Chưa có đơn ship hôm nay.")
                             }
                         }
                         ForEach(Array(hoaDons.enumerated()), id: \.element.id) { index, hd in
@@ -87,7 +87,7 @@ struct ShipView: View {
             Button("Tiếp tục") { checkTraNo(hd) }
             Button("Huỷ", role: .cancel) {}
         } message: { _ in
-            Text("Nhập TỔNG tiền khách đưa, bỏ 3 số 0 cuối.\nVD: khách đưa 150.000đ → nhập 150")
+            Text("Tổng tiền khách đưa (nghìn). VD 150.000đ → 150")
         }
         .alert(
             "Xác nhận trả nợ",
@@ -157,20 +157,20 @@ struct ShipView: View {
         }
         // Gõ cả số 0 (150000 thay vì 150) → hiểu thành 150 triệu, server sẽ trừ sạch nợ khách. Chặn từ 10 triệu.
         guard nghin < 10_000 else {
-            alertMessage = "Chỉ nhập số nghìn, bỏ 3 số 0 cuối.\nVD: 150.000đ → nhập 150"
+            alertMessage = "Nhập số nghìn. VD 150.000đ → 150"
             return
         }
         let khachDua = Double(nghin) * 1000
         guard khachDua > hd.shipperDaThu else {
-            alertMessage = "Tổng tiền khách đưa phải lớn hơn tiền đơn hôm nay \(HoaDonFormatting.money(hd.shipperDaThu))"
+            alertMessage = "Phải lớn hơn tiền đơn hôm nay \(HoaDonFormatting.money(hd.shipperDaThu))"
             return
         }
         // Server tự kẹp về tổng nợ (phần dư không ghi đâu cả) — báo trước để Nhã nhập lại/thối tiền.
         let toiDa = hd.shipperDaThu + hd.tongNo
         guard khachDua <= toiDa else {
-            alertMessage = "Nhập dư! Khách chỉ nợ \(HoaDonFormatting.money(hd.tongNo))"
+            alertMessage = "Dư! Tối đa \(Int(toiDa / 1000)) (nợ \(HoaDonFormatting.money(hd.tongNo))"
                 + (hd.shipperDaThu > 0 ? " + đơn hôm nay \(HoaDonFormatting.money(hd.shipperDaThu))" : "")
-                + ".\nTối đa nhập \(Int(toiDa / 1000))"
+                + ")"
             return
         }
         traNoConfirm = TraNoConfirm(hd: hd, nghin: nghin, duKien: khachDua - hd.shipperDaThu)

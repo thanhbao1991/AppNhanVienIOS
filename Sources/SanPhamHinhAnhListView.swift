@@ -233,8 +233,7 @@ extension UIImage {
     func menuUploadJPEG() -> (data: Data?, loi: String?) {
         let w = size.width * scale, h = size.height * scale
         if min(w, h * 3 / 4) < 1079.5 {
-            return (nil, "Ảnh quá nhỏ (\(Int(w))×\(Int(h))). Cần ảnh chụp gốc từ điện thoại, tối thiểu 1080×1440 — "
-                + "không dùng ảnh chụp màn hình hay ảnh gửi qua Zalo/Messenger.")
+            return (nil, "Ảnh quá nhỏ (\(Int(w))×\(Int(h))). Cần ảnh gốc ≥1080×1440, không dùng ảnh Zalo/chụp màn hình.")
         }
         guard let data = resizedForMenuUpload().jpegData(compressionQuality: 0.9) else { return (nil, "Không nén được ảnh.") }
         return (data, nil)

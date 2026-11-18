@@ -39,13 +39,13 @@ struct NhapAnhView: View {
                         Text("\(done)/\(items.count) đã lưu vào Ảnh" + (errors > 0 ? " · \(errors) lỗi" : ""))
                     }
                     if !status.isEmpty { Text(status).font(.footnote).foregroundColor(.secondary) }
-                    Button(running ? "Đang nhập… (để app mở, màn hình sáng)" : "Bắt đầu nhập ảnh") {
+                    Button(running ? "Đang nhập… giữ app mở" : "Bắt đầu nhập ảnh") {
                         Task { await run() }
                     }
                     .disabled(running)
                 }
                 Section {
-                    Text("Giữ iPhone và máy quầy cùng Wi-Fi. Có thể dừng giữa chừng, bấm lại sẽ chạy tiếp phần còn thiếu.")
+                    Text("Cùng Wi-Fi với máy quầy. Dừng được, bấm lại chạy tiếp.")
                         .font(.footnote).foregroundColor(.secondary)
                 }
             }
@@ -102,7 +102,7 @@ struct NhapAnhView: View {
                 status = "Lỗi \(item.id): \(error.localizedDescription)"
             }
         }
-        status = errors == 0 ? "Xong ✅" : "Xong, còn \(errors) lỗi — bấm lại để thử lại phần lỗi."
+        status = errors == 0 ? "Xong ✅" : "Xong, \(errors) ảnh lỗi — bấm lại để thử lại"
     }
 
     private func download(_ path: String, base: URL) async throws -> URL {

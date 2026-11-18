@@ -203,12 +203,12 @@ private struct ReceiptReviewSheet: View {
                 Section {
                     Toggle("Bill tháng", isOn: $billThang)
                 } footer: {
-                    Text("Áp dụng chung cho tất cả dòng bên dưới.")
+                    Text("Áp cho mọi dòng.")
                 }
 
                 if let tong = lechTong {
                     Section {
-                        Text("Tổng các dòng (\(totalText)) lệch với tổng trên phiếu (\(HoaDonFormatting.money(tong))). AI có thể đọc sai dòng hoặc giá — kiểm tra lại từng dòng trước khi lưu.")
+                        Text("Tổng dòng \(totalText) ≠ tổng phiếu \(HoaDonFormatting.money(tong)) — kiểm tra lại từng dòng.")
                             .font(.footnote)
                             .foregroundColor(.dangerColor)
                     }
