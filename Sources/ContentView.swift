@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// App nhân viên có 5 tab (theo thứ tự): Thống kê (theo ngày), Ship, Chi tiêu, Lương (Nhã), Ảnh menu.
+/// App nhân viên có 5 tab (theo thứ tự): Thống kê (theo ngày), Ship, Chi tiêu, Lương (Nhã) (tab Ảnh menu đã ẩn 19/11/2026).
 /// Chưa đăng nhập → LoginView; refresh token bị thu hồi (APIClient bắn .sessionExpired) → tự quay về LoginView.
 struct ContentView: View {
     @State private var isLoggedIn = Prefs.isLoggedIn
@@ -24,8 +24,7 @@ struct ContentView: View {
                             .tabItem { Label("Chi tiêu", systemImage: "cart") }
                         TinhLuongView(isLoggedIn: $isLoggedIn)
                             .tabItem { Label("Lương", systemImage: "banknote") }
-                        SanPhamHinhAnhListView(isLoggedIn: $isLoggedIn)
-                            .tabItem { Label("Ảnh menu", systemImage: "photo.on.rectangle.angled") }
+                        // Ẩn tab "Ảnh menu" (user 19/11/2026): chỉ đổi ảnh menu qua màn duyệt ảnh ở tab Kê AppQuanLyIOS.
                     }
                     // Phiên cũ còn hiệu lực lúc mở app, hoặc vừa đăng nhập xong → xin quyền + đăng ký push.
                     .onAppear { PushNotifications.requestAndRegister() }
