@@ -154,7 +154,7 @@ private struct SanPhamHinhAnhRow: View {
     @ViewBuilder
     private var thumbnail: some View {
         let shape = RoundedRectangle(cornerRadius: 10, style: .continuous)
-        if let hinhAnh = sanPham.hinhAnh, let url = URL(string: hinhAnh) {
+        if let hinhAnh = sanPham.anhNho, let url = URL(string: hinhAnh) {
             AsyncImage(url: url) { phase in
                 switch phase {
                 case .success(let image):
